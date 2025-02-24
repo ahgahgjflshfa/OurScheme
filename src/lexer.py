@@ -6,6 +6,12 @@ class Token:
     def __repr__(self):
         return f"Token({self.type}, {repr(self.value)})"
 
+    def __eq__(self, other):
+        if isinstance(other, Token):
+            return self.type == other.type and self.value == other.value
+
+        return False
+
 
 class Lexer:
     def __init__(self, source_code: str):
@@ -16,45 +22,65 @@ class Lexer:
         self.source_code = source_code      # Store 1 line of user input in repl.
         self.position = 0                   # Store current location.
 
+    def reset(self, new_source_code):
+        """Reset lexer status, let it tokenize new source code"""
+        self.source_code = new_source_code
+        self.position = 0
+
     def next_token(self):
         """Return next token from source code"""
+        self._skip_whitespace_and_comments()
 
+        if self.position >= len(self.source_code):
+            return Token("EOF", None)
+
+        char = self.source_code[self.position]
+        if char in "()":
+            return self._read_paren()
+
+        elif char == ".":
+            return self._read_dot()
+
+        elif char == "#":
+            return self._read_boolean()
+
+        elif char == "\'":
+            return self._read_quote()
+
+        elif char.isalpha():
+            return self._read_symbol()
+
+        elif char == "\"":
+            return self._read_string()
+
+        elif char.isdigit() or (char in "+-" and self._peek().isdigit()):
+            return self._read_int_or_float()
+
+        else:
+            raise SyntaxError(f"Unknown character: {char}")
+
+    def peek_token(self):
+        current_position = self.position
+        token = self.next_token()
+        self.position = current_position
+        return token
+
+    def has_more_token(self):
+        """Check if lexer have more token"""
+        return self.position < len(self.source_code)
+
+    def _skip_whitespace_and_comments(self):
+        """Skips whitespace and comments"""
         while self.position < len(self.source_code):
             char = self.source_code[self.position]
 
-            if char.isspace():
+            if char.isspace():  # whitespace
                 self.position += 1
-                continue
-
-            elif char == ";":
+            elif char == ";":   # comments
                 while self.position < len(self.source_code) and self.source_code[self.position] != "\n":
                     self.position += 1
-
-            elif char in "()":
-                return self._read_paren()
-
-            elif char == ".":
-                return self._read_dot()
-
-            elif char == "#":
-                return self._read_boolean()
-
-            elif char == "\'":
-                return self._read_quote()
-
-            elif char.isalpha():
-                return self._read_symbol()
-
-            elif char == "\"":
-                return self._read_string()
-
-            elif char.isdigit() or (char in "+-" and self._peek().isdigit()):
-                return self._read_int_or_float()
-
             else:
-                raise SyntaxError(f"Unknown character")
-
-        return Token("EOF", None)
+                break
 
     def _peek(self):
         """Peek next character"""
@@ -106,24 +132,24 @@ class Lexer:
         """Read number token"""
         start_position = self.position
 
+        if self.source_code[start_position] in "+-" and not self._peek().isdigit():
+            raise SyntaxError(f"不合法的符號: {self.source_code[start_position]}")
+
         self.position += 1
 
         while self.position < len(self.source_code) and self.source_code[self.position].isdigit():
             self.position += 1
 
-        if self.position < len(self.source_code) and self.source_code[self.position] == ".":    # float
-            self.position += 1
-
-            while self.position < len(self.source_code) and self.source_code[self.position].isdigit():
+        if self.position < len(self.source_code) and self.source_code[self.position] == ".":
+            if self._peek().isdigit():  # is float
                 self.position += 1
+                while self.position < len(self.source_code) and self.source_code[self.position].isdigit():
+                    self.position += 1
+                return Token("FLOAT", float(self.source_code[start_position:self.position]))
+            else:   # dot pair
+                return Token("INT", int(self.source_code[start_position:self.position]))
 
-
-            value = float(self.source_code[start_position:self.position])
-            return Token("FLOAT", value)
-
-        else:   # integer
-            value = self.source_code[start_position:self.position]
-            return Token("INT", value)
+        return Token("INT", int(self.source_code[start_position:self.position]))
 
     def _read_symbol(self):
         """Read symbol token (variable names, function names)"""
