@@ -59,12 +59,6 @@ class Lexer:
         else:
             raise SyntaxError(f"Unknown character: {char}")
 
-    def peek_token(self):
-        current_position = self.position
-        token = self.next_token()
-        self.position = current_position
-        return token
-
     def has_more_token(self):
         """Check if lexer have more token"""
         return self.position < len(self.source_code)
@@ -190,15 +184,15 @@ class Lexer:
                 self.position += 1
                 if (self.position < len(self.source_code)
                         and (self.source_code[self.position].isalnum() or self.source_code[self.position] == "_")):
-                    raise Exception(f"不合法的布林值: #f{self.source_code[self.position]}")
+                    raise Exception(f"Illegal boolean: #f{self.source_code[self.position]}")
 
                 return Token("NIL", "nil")
 
             else:
-                raise Exception(f"未知的布林值: #{char}")
+                raise Exception(f"Unknown boolean: #{char}")
 
         else:
-            raise Exception(f"未知的布林值: {self.source_code[self.position]}")
+            raise Exception(f"Unknown boolean: {self.source_code[self.position]}")
 
     def _read_dot(self):
         """Read DOT (.)"""
