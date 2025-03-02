@@ -53,7 +53,10 @@ class Lexer:
         elif char == "\"":
             return self._read_string()
 
-        elif char.isdigit() or (char in "+-" and self._peek().isdigit()):
+        elif char in ("+", "-", "*", "/") and self._peek().isspace():   # function symbols
+            return self._read_symbol()
+
+        elif char.isdigit() or (char in "+-" and self._peek().isdigit()):   # +100 -5 etc.
             return self._read_int_or_float()
 
         else:
@@ -79,6 +82,12 @@ class Lexer:
     def _peek(self):
         """Peek next character"""
         return self.source_code[self.position + 1] if self.position + 1 < len(self.source_code) else ""
+
+    def _peek_token(self):
+        current_position = self.position
+        token = self.next_token()
+        self.position = current_position
+        return token
 
     def _read_string(self):
         """Read string token"""
@@ -150,7 +159,7 @@ class Lexer:
         start_position = self.position
 
         while (self.position < len(self.source_code)
-               and (self.source_code[self.position].isalnum() or self.source_code[self.position] in "-_!?.")):
+               and (self.source_code[self.position].isalnum() or self.source_code[self.position] in "+-*/_!?.")):
             self.position += 1
 
         symbol = self.source_code[start_position:self.position]
