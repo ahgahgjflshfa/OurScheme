@@ -2,8 +2,8 @@ from .ast_nodes import *
 
 
 class Evaluator:
-    def __init__(self, env):
-        self.env = env
+    def __init__(self, env=None):
+        self.env = env if env is not None else {}
 
     def eval(self, node: ASTNode):
         if isinstance(node, AtomNode):
@@ -22,14 +22,13 @@ class Evaluator:
             raise RuntimeError(f"Unknown AST node: {node}")
 
     def _eval_atom(self, node: AtomNode):
-        if isinstance(node.value, (int, float, str)):
+        if node.type in ("INT", "FLOAT", "STRING", "BOOLEAN"):
             return node.value
 
-        elif node.value in self.env:    # user define variables or functions
+        elif node.type == "SYMBOL" and node.value in self.env:
             return self.env[node.value]
 
-        else:
-            raise RuntimeError(f"Undefined symbol: {node.value}")
+        raise RuntimeError(f"Undefined symbol: {node.value}")
 
     def _eval_list(self, node: ListNode):
         if not node.elements:
@@ -37,28 +36,30 @@ class Evaluator:
 
         first = node.elements[0]
 
-        # First element is function call
-        if isinstance(first, AtomNode) and first.value in self.env:
-            func_name = first.value
-            func = self.env[func_name]
-            args = [self.eval(arg) for arg in node.elements[1:]]
+        # (define x 10)
+        if isinstance(first, AtomNode) and first.value == "define":
+            if len(node.elements) != 3:
+                raise RuntimeError("define expects 2 arguments: (define name value)")
+            _, name, value = node.elements
+            if not isinstance(name, AtomNode) or name.type != "SYMBOL":
+                raise RuntimeError("define expects a symbol as the first argument")
 
+            self.env[name.value] = self.eval(value)
+            return None  # define 不應該回傳值
+
+        # 一般函數呼叫
+        if isinstance(first, AtomNode) and first.value in self.env:
+            func = self.env[first.value]
+            args = [self.eval(arg) for arg in node.elements[1:]]
             return func(*args)
 
-        # First element is not function call, pure data list
         return ListNode([self.eval(el) for el in node.elements])
 
     def _eval_cons(self, node: ConsNode):
         car = self.eval(node.car)
         cdr = self.eval(node.cdr)
 
-        # ✅ 如果 cdr 是 nil，應該轉成 ListNode([car])
-        if isinstance(cdr, AtomNode) and cdr.value == "nil":
-            return ListNode([car])
-
-        # ✅ 如果 cdr 是 ListNode，轉成標準 Scheme List
         if isinstance(cdr, ListNode):
             return ListNode([car] + cdr.elements)
 
-        # ✅ **確保 `car` 仍然是 Atom，不是 ListNode**
         return ConsNode(car, cdr)
