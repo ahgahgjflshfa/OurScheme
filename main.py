@@ -13,6 +13,7 @@ global_env = {
 
 def repl():
     """Scheme REPL（讀取-解析-執行-輸出）"""
+    print("Welcome to OurScheme!")
     while True:
         try:
             s_exp = input("> ")
@@ -23,6 +24,9 @@ def repl():
             parser = Parser(lexer)
             ast_tree = parser.parse()
 
+            evaluator = Evaluator(global_env)
+            evaluator.eval(ast_tree)
+
             print(ast_tree)
 
         except Exception as e:
@@ -32,3 +36,5 @@ def repl():
 if __name__ == "__main__":
     while 1:
         repl()
+
+

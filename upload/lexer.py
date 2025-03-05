@@ -27,7 +27,7 @@ class Lexer:
         self.source_code = new_source_code
         self.position = 0
 
-    def next_token(self):
+    def next_token(self) -> Token:
         """Return next token from source code"""
         self._skip_whitespace_and_comments()
 
@@ -103,7 +103,7 @@ class Lexer:
                 self.position += 1  # skip backslash
 
                 if self.position >= len(self.source_code):
-                    raise SyntaxError("未終結的字串: 缺少閉合的 \"")
+                    raise SyntaxError("Missing closing \"")
 
                 if self.source_code[self.position] == "n":      # newline
                     result += "\n"
@@ -118,25 +118,22 @@ class Lexer:
                     result += "\\"
 
                 else:
-                    raise SyntaxError(f"無效的跳脫字元 '\\{self.source_code[self.position]}'")
+                    raise SyntaxError(f"Invalid escape character: '\\{self.source_code[self.position]}'")
 
                 self.position += 1
 
             elif self.source_code[self.position] == "\n":
-                raise SyntaxError("未終結的字串: 缺少閉合的 \"")
+                raise SyntaxError("Missing closing \"")
 
             else:
                 result += self.source_code[self.position]
                 self.position += 1
 
-        raise SyntaxError("未終結的字串: 缺少閉合的 \"")
+        raise SyntaxError("Missing closing \"")
 
     def _read_int_or_float(self):
         """Read number token"""
         start_position = self.position
-
-        if self.source_code[start_position] in "+-" and not self._peek().isdigit():
-            raise SyntaxError(f"不合法的符號: {self.source_code[start_position]}")
 
         self.position += 1
 
@@ -177,7 +174,7 @@ class Lexer:
             self.position += 1
 
             if self.position >= len(self.source_code):
-                raise Exception("布林值 #t 或 #f 不完整")
+                raise Exception("Boolean incomplete")
 
             char = self.source_code[self.position]
 
@@ -185,7 +182,7 @@ class Lexer:
                 self.position += 1
                 if (self.position < len(self.source_code)
                         and (self.source_code[self.position].isalnum() or self.source_code[self.position] == "_")):
-                    raise Exception(f"不合法的布林值: #t{self.source_code[self.position]}")
+                    raise Exception(f"Illegal boolean: #t{self.source_code[self.position]}")
 
                 return Token("T", "#t")
 
@@ -224,3 +221,43 @@ class Lexer:
             return Token("LEFT_PAREN", "(")
         else:
             return Token("RIGHT_PAREN", ")")
+        
+        
+import sys
+        
+def main():
+    """Lexer REPL & batch input handling"""
+    if sys.stdin.isatty():
+        print("Welcome to OurScheme Lexer!")
+        while True:
+            try:
+                s_exp = input("> ")
+                if s_exp.lower() in ("exit", "quit"):
+                    break
+
+                lexer = Lexer(s_exp)
+
+                token = lexer.next_token()
+                while token.type != "EOF":
+                    print(token)
+                    token = lexer.next_token()
+
+            except Exception as e:
+                print("Error:", e)
+
+        print("> ")
+        print("Thanks for using OurScheme!")
+    else:
+        source_code = sys.stdin.read().strip()
+        lexer = Lexer(source_code)
+
+        while lexer.has_more_token():
+            try:
+                token = lexer.next_token()
+                print(token)
+            except Exception as e:
+                print("Error:", e)
+                break
+
+if __name__ == "__main__":
+    main()
