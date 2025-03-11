@@ -83,14 +83,19 @@ class Lexer:
             else:
                 break
 
-    def _peek(self):
+    def peek(self):
         """Peek next character"""
         return self.source_code[self._position + 1] if self._position + 1 < len(self.source_code) else ""
 
-    def _peek_token(self):
+    def peek_token(self):
         current_position = self._position
+        # current_line_count = self._line_count
+
         token = self.next_token()
+
         self._position = current_position
+        # self._line_count = current_line_count
+
         return token
 
     def _read_string(self):
@@ -120,8 +125,8 @@ class Lexer:
         """Read number token"""
         start_position = self._position
 
-        if self.source_code[start_position] in "+-" and not self._peek().isdigit():
-            raise SyntaxError(f"不合法的符號: {self.source_code[start_position]}")
+        # if self.source_code[start_position] in "+-" and not self._peek().isdigit():
+        #     raise SyntaxError(f"不合法的符號: {self.source_code[start_position]}")
 
         self._position += 1
 
@@ -129,13 +134,18 @@ class Lexer:
             self._position += 1
 
         if self._position < len(self.source_code) and self.source_code[self._position] == ".":
-            if self._peek().isdigit():  # is float
+            # if self._peek().isdigit():  # is float
+            #     self._position += 1
+            #     while self._position < len(self.source_code) and self.source_code[self._position].isdigit():
+            #         self._position += 1
+            #     return Token("FLOAT", float(self.source_code[start_position:self._position]))
+            # else:   # dot pair
+            #     return Token("INT", int(self.source_code[start_position:self._position]))
+
+            self._position += 1
+            while self._position < len(self.source_code) and self.source_code[self._position].isdigit():
                 self._position += 1
-                while self._position < len(self.source_code) and self.source_code[self._position].isdigit():
-                    self._position += 1
-                return Token("FLOAT", float(self.source_code[start_position:self._position]))
-            else:   # dot pair
-                return Token("INT", int(self.source_code[start_position:self._position]))
+            return Token("FLOAT", float(self.source_code[start_position:self._position]))
 
         return Token("INT", int(self.source_code[start_position:self._position]))
 
@@ -144,7 +154,7 @@ class Lexer:
         start_position = self._position
 
         while (self._position < len(self.source_code)
-               and (self.source_code[self._position].isalnum() or self.source_code[self._position] in "+-*/_!?.")):
+               and (self.source_code[self._position].isalnum() or self.source_code[self._position] in "+-*/_!?.#")):
             self._position += 1
 
         symbol = self.source_code[start_position:self._position]
@@ -246,6 +256,16 @@ def repl():
 
                 if token.type == "STRING":
                     print(f"\n> \"{token.value}\"")
+
+                elif token.type == "LEFT_PAREN":
+                    if lexer.peek_token().type == "RIGHT_PAREN":
+                        _ = lexer.next_token()
+
+                    print("\n> nil")
+
+                elif token.type == "FLOAT":
+                    print(f"\n> {token.value:.3f}")
+
                 else:
                     print(f"\n> {token.value}")
                 token = lexer.next_token()
