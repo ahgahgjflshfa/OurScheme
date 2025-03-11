@@ -14,13 +14,13 @@ class Token:
 
 
 class Lexer:
-    def __init__(self, source_code: str):
+    def __init__(self):
         """
 
         :param source_code:
         """
-        self.source_code = source_code      # Store 1 line of user input in repl.
-        self.position = 0                   # Store current location.
+        self.source_code = ""      # Store 1 line of user input in repl.
+        self.position = 0          # Store current location.
 
     def reset(self, new_source_code):
         """Reset lexer status, let it tokenize new source code"""

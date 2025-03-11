@@ -14,6 +14,7 @@ global_env = {
 def repl():
     """Scheme REPL（讀取-解析-執行-輸出）"""
     print("Welcome to OurScheme!")
+
     while True:
         try:
             s_exp = input("> ")
@@ -21,20 +22,20 @@ def repl():
                 break
 
             lexer = Lexer(s_exp)
-            parser = Parser(lexer)
-            ast_tree = parser.parse()
 
-            evaluator = Evaluator(global_env)
-            evaluator.eval(ast_tree)
+            token = lexer.next_token()
+            while token.type != "EOF":
+                print(token)
+                token = lexer.next_token()
 
-            print(ast_tree)
+        except EOFError:
+            print("\n> ERROR (no more input) : END-OF-FILE encountered")
+            break
 
-        except Exception as e:
-            print("Error:", e)
+    print("Thanks for using OurScheme!")
 
 
 if __name__ == "__main__":
-    while 1:
-        repl()
-
-
+    n = input()
+    repl()
+    quit(0)
