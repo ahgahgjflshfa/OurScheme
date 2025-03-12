@@ -53,8 +53,6 @@ def ourscheme_repl():
     print("Thanks for using OurScheme!")
 
 
-import numpy as np
-
 if __name__ == "__main__":
     # repl()
     n = input()

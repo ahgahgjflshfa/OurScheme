@@ -1,3 +1,41 @@
+class NoClosingQuoteError(Exception):
+    def __init__(self, msg_):
+        self.msg = msg_
+        super().__init__(msg_)
+
+    def __str__(self):
+        return self.msg
+
+
+class NotFinishError(Exception):
+    """讓parser等待多行輸入"""
+    def __init__(self, msg_="S expression not complete"):
+        self.msg = msg_
+        super().__init__(msg_)
+
+    def __str__(self):
+        return self.msg
+
+
+class EmptyInputError(Exception):
+    """遇到註解或是整行空白用的"""
+    def __init__(self, msg_):
+        self.msg = msg_
+        super().__init__(msg_)
+
+    def __str__(self):
+        return self.msg
+
+
+class UnexpectedTokenError(Exception):
+    def __init__(self, msg_):
+        self.msg = msg_
+        super().__init__(msg_)
+
+    def __str__(self):
+        return self.msg
+
+
 class Token:
     def __init__(self, type_, value):
         self.type = type_
@@ -115,7 +153,7 @@ class Lexer:
                 result += self.source_code[self._position]
                 self._position += 1
 
-        raise SyntaxError(f"ERROR (no closing quote) : END-OF-LINE encountered at Line {self._line_count} Column {self._position + 1}")
+        raise NoClosingQuoteError(f"ERROR (no closing quote) : END-OF-LINE encountered at Line {self._line_count} Column {self._position + 1}")
 
     def _read_int_or_float(self):
         """Read number token"""
@@ -279,11 +317,6 @@ class QuoteNode(ASTNode):
         return f"{self.__class__.__name__}({repr(self.value)})"
 
 
-class NotFinishError(Exception):
-    # TODO
-    pass
-
-
 class Parser:
     def __init__(self, lexer: Lexer):
         self.lexer = lexer
@@ -315,42 +348,48 @@ class Parser:
         elif token.type == "LEFT_PAREN":
             return self._parse_list()
 
-        else:
-            raise SyntaxError(f"Unexpected token: {token}")
+        elif token.type == "EOF":
+            raise EmptyInputError(f"EOF encountered")
+
+        # else:
+        #     raise SyntaxError(f"Unexpected token: {token}")
 
     def _parse_list(self) -> ASTNode:
         """Parse an S-Expression list"""
-        self._consume_token()  # 🔥 consume `LEFT_PAREN`
+        self._consume_token()  # consume `LEFT_PAREN`
         elements = []
+
+        line = len(self.lexer.source_code.split("\n"))
+        pos = len(self.lexer.source_code.split("\n")[-1])
 
         while self.current.type not in ("RIGHT_PAREN", "EOF"):
             if self.current.type == "DOT":
                 self._consume_token()  # skip `.`
 
-                if self.current.type == "RIGHT_PAREN":  # 🔥 `.` 不能沒有右值
-                    raise SyntaxError(
-                        f"ERROR (unexpected token) : atom or '(' expected when token at Line {self.lexer.line_count} Column {self.lexer.position} is >>)<<"
+                if self.current.type == "RIGHT_PAREN":  # `.` 不能沒有右值
+                    raise UnexpectedTokenError(
+                        f"ERROR (unexpected token) : atom or '(' expected when token at Line {line} Column {pos} is >>)<<"
                     )
 
                 elif self.current.type == "EOF":
-                    raise SyntaxError("Unexpected EOF while parsing list.")  # 🔥 讓 `repl()` 繼續等待輸入
+                    raise NotFinishError("Unexpected EOF while parsing list.")  # 讓 `repl()` 繼續等待輸入
 
                 right = self._parse_s_exp()
 
                 if self._consume_token().type != "RIGHT_PAREN":
-                    raise SyntaxError("Dotted pair must end with right parenthesis.")
+                    raise NotFinishError("Unexpected EOF while parsing list.")
 
                 return ConsNode(elements[0], right) if len(elements) == 1 else ConsNode(ListNode(elements), right)
 
             elements.append(self._parse_s_exp())
 
         if self.current.type == "EOF":
-            raise SyntaxError("Unexpected EOF while parsing list.")  # 🔥 讓 `repl()` 繼續等待輸入  # TODO: 新建一個not finish error作為等待輸入
+            raise NotFinishError("Unexpected EOF while parsing list.")  # 讓 `repl()` 繼續等待輸入
 
         self._consume_token()  # consume right parenthesis
 
         if not elements:
-            return AtomNode("NIL", "nil")  # 🔥 `()` 應該回傳 `nil`
+            return AtomNode("NIL", "nil")  # `()` 應該回傳 `nil`
 
         return ListNode(elements)
 
@@ -385,8 +424,8 @@ def repl():
             if new_input.lower() == "(exit)":
                 break
 
-            partial_input += new_input + "\n"  # 🔥 儲存多行輸入
-            lexer.reset(partial_input)
+            partial_input += new_input + "\n"  # 儲存多行輸入
+            lexer.reset(partial_input.rstrip())
             parser = Parser(lexer)
 
             try:
@@ -401,22 +440,21 @@ def repl():
                     print(f"\n> {result}")
 
                 partial_input = ""  # 解析成功後清空輸入
+                lexer.reset_line_count()
 
-            except SyntaxError as e:
-                # raise SyntaxError(e)
-
+            except NotFinishError as e:
                 if "Unexpected EOF" in str(e):
                     continue  # 繼續等待輸入（多行解析）
 
+                # e.g. no closing quote ...
                 print(f"\n> {e}")
                 partial_input = ""  # 出錯後清空輸入
 
-        except Exception as e:
-            print(f"\n> {e}")
-            partial_input = ""  # 出錯後清空輸入
+            except EmptyInputError as e:
+                partial_input = ""  # 出錯後清空輸入
 
-        finally:
-            lexer.reset_line_count()
+        except NoClosingQuoteError as e:
+            print(f"\n> {e}")
 
     print("Thanks for using OurScheme!")
 
