@@ -269,7 +269,7 @@ class Lexer:
 
     def _read_unknown(self):
         start = self._position
-        while not self.source_code[self._position].isspace():
+        while self._position < len(self.source_code) and not self.source_code[self._position].isspace():
             self._position += 1
 
         return Token("UNKNOWN", self.source_code[start:self._position])
@@ -326,9 +326,14 @@ class Parser:
     def current(self) -> Token:
         return self.current_token
 
-    def parse(self) -> ASTNode:
+    def parse(self) -> list:
         """Entry point of parser"""
-        return self._parse_s_exp()  # repl
+        elements = []
+
+        while self.current.type != "EOF":
+            elements.append(self._parse_s_exp())  # repl
+
+        return elements
 
     def _consume_token(self) -> Token:
         token = self.current_token
@@ -339,7 +344,7 @@ class Parser:
         """Parse a single S-expression"""
         token = self._consume_token()
 
-        if token.type in ("SYMBOL", "INT", "FLOAT", "STRING", "NIL", "T"):
+        if token.type in ("SYMBOL", "INT", "FLOAT", "STRING", "NIL", "T", "UNKNOWN"):
             return self._parse_atom(token)
 
         elif token.type == "QUOTE":
@@ -401,7 +406,7 @@ class Parser:
 
     def _parse_atom(self, token: Token) -> ASTNode:
         """Parse atom and preserve type information"""
-        if token.type in ("INT", "FLOAT", "SYMBOL", "STRING"):
+        if token.type in ("INT", "FLOAT", "SYMBOL", "STRING", "UNKNOWN"):
             return AtomNode(token.type, token.value)
 
         elif token.type == "T":  # #t
@@ -429,18 +434,19 @@ def repl():
             parser = Parser(lexer)
 
             try:
-                result = parser.parse()
-                if isinstance(result, AtomNode) and result.type == "STRING":
-                    print(f'\n> "{result.value}"')
-                elif isinstance(result, ListNode) and not result.elements:
-                    print("\n> nil")
-                elif isinstance(result, AtomNode) and result.type == "FLOAT":
-                    print(f"\n> {result.value:.3f}")
-                else:
-                    print(f"\n> {result}")
+                results = parser.parse()
+                for result in results:
+                    if isinstance(result, AtomNode) and result.type == "STRING":
+                        print(f'\n> "{result.value}"')
+                    elif isinstance(result, ListNode) and not result.elements:
+                        print("\n> nil")
+                    elif isinstance(result, AtomNode) and result.type == "FLOAT":
+                        print(f"\n> {result.value:.3f}")
+                    else:
+                        print(f"\n> {result}")
 
-                partial_input = ""  # 解析成功後清空輸入
-                lexer.reset_line_count()
+                    partial_input = ""  # 解析成功後清空輸入
+                    lexer.reset_line_count()
 
             except NotFinishError as e:
                 if "Unexpected EOF" in str(e):
@@ -450,8 +456,13 @@ def repl():
                 print(f"\n> {e}")
                 partial_input = ""  # 出錯後清空輸入
 
+            except UnexpectedTokenError as e:
+                # e.g. no closing quote ...
+                print(f"\n> {e}")
+                partial_input = ""
+
             except EmptyInputError as e:
-                partial_input = ""  # 出錯後清空輸入
+                partial_input = ""
 
         except NoClosingQuoteError as e:
             print(f"\n> {e}")
