@@ -19,6 +19,14 @@ class Lexer:
         self._position = 0      # Store current location.
         self._line_count = 0    # Store current line count
 
+    @property
+    def line_count(self):
+        return self._line_count
+
+    @property
+    def position(self):
+        return self._position
+
     def reset(self, new_source_code):
         """Reset lexer status, let it tokenize new source code"""
         self.source_code = new_source_code # + "\n"
@@ -44,7 +52,7 @@ class Lexer:
             return self._read_dot()
 
         elif char == "#":
-            return self._read_boolean()
+            return self._read_symbol()
 
         elif char == "\'":
             return self._read_quote()
@@ -55,10 +63,10 @@ class Lexer:
         elif char == "\"":
             return self._read_string()
 
-        elif char in ("+", "-", "*", "/") and self._peek().isspace():   # function symbols
+        elif char in ("+", "-", "*", "/") and self.peek().isspace():   # function symbols
             return self._read_symbol()
 
-        elif char.isdigit() or (char in "+-" and self._peek().isdigit()):   # +100 -5 etc.
+        elif char.isdigit() or (char in "+-" and self.peek().isdigit()):   # +100 -5 etc.
             return self._read_int_or_float()
 
         else:
@@ -89,13 +97,8 @@ class Lexer:
 
     def peek_token(self):
         current_position = self._position
-        # current_line_count = self._line_count
-
         token = self.next_token()
-
         self._position = current_position
-        # self._line_count = current_line_count
-
         return token
 
     def _read_string(self):
@@ -108,13 +111,6 @@ class Lexer:
                 self._position += 1
                 return Token("STRING", result)
 
-            # TODO: don't know if this part is needed
-            # elif self.source_code[self._position] == "\n":
-            #     self._line_count += 1
-            #     raise SyntaxError(
-            #         f"ERROR (no closing quote) : END-OF-LINE encountered at Line {self._line_count} Column {self._position + 1}"
-            #     )
-
             else:
                 result += self.source_code[self._position]
                 self._position += 1
@@ -124,30 +120,39 @@ class Lexer:
     def _read_int_or_float(self):
         """Read number token"""
         start_position = self._position
-
-        # if self.source_code[start_position] in "+-" and not self._peek().isdigit():
-        #     raise SyntaxError(f"不合法的符號: {self.source_code[start_position]}")
+        is_symbol = False
 
         self._position += 1
 
-        while self._position < len(self.source_code) and self.source_code[self._position].isdigit():
-            self._position += 1
+        while self._position < len(self.source_code):
+            char = self.source_code[self._position]
 
-        if self._position < len(self.source_code) and self.source_code[self._position] == ".":
-            # if self._peek().isdigit():  # is float
-            #     self._position += 1
-            #     while self._position < len(self.source_code) and self.source_code[self._position].isdigit():
-            #         self._position += 1
-            #     return Token("FLOAT", float(self.source_code[start_position:self._position]))
-            # else:   # dot pair
-            #     return Token("INT", int(self.source_code[start_position:self._position]))
-
-            self._position += 1
-            while self._position < len(self.source_code) and self.source_code[self._position].isdigit():
+            if char.isdigit():
                 self._position += 1
-            return Token("FLOAT", float(self.source_code[start_position:self._position]))
 
-        return Token("INT", int(self.source_code[start_position:self._position]))
+            elif char.isalpha():
+                is_symbol = True
+                self._position += 1
+
+            elif char == ".":
+                if is_symbol:
+                    self._position += 1
+
+                else:
+                    self._position += 1
+                    while self._position < len(self.source_code) and self.source_code[self._position].isdigit():
+                        self._position += 1
+
+                    return Token("FLOAT", float(self.source_code[start_position:self._position]))
+
+            else:
+                break
+
+        if is_symbol:
+            return Token("SYMBOL", self.source_code[start_position:self._position])
+
+        else:
+            return Token("INT", int(self.source_code[start_position:self._position]))
 
     def _read_symbol(self):
         """Read symbol token (variable names, function names)"""
@@ -163,6 +168,10 @@ class Lexer:
             return Token("T", "#t")
         elif symbol == "nil":
             return Token("NIL", "nil")
+        elif symbol == "#t":
+            return Token("T", "#t")
+        elif symbol == "#f":
+            return Token("NIL", "nil")
 
         return Token("SYMBOL", symbol)
 
@@ -174,8 +183,8 @@ class Lexer:
             if self._position >= len(self.source_code):
                 raise Exception("布林值 #t 或 #f 不完整")
 
-            char = self.source_code[self._position]
 
+            char = self.source_code[self._position]
             if char == "t": # #t
                 self._position += 1
                 if (self._position < len(self.source_code)
@@ -228,52 +237,186 @@ class Lexer:
         return Token("UNKNOWN", self.source_code[start:self._position])
 
 
+class ASTNode:
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and vars(self) == vars(other)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}()"
+
+
+class AtomNode(ASTNode):
+    def __init__(self, type_, value):
+        self.type = type_   # "INT", "FLOAT", "SYMBOL", "BOOLEAN"
+        self.value = value
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.type}, {repr(self.value)})"
+
+
+class ListNode(ASTNode):
+    def __init__(self, elements=None):
+        self.elements = elements if elements is not None else []
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({repr(self.elements)})"
+
+
+class ConsNode(ASTNode):
+    def __init__(self, car: ASTNode, cdr: ASTNode = None):
+        self.car = car
+        self.cdr = cdr  # cdr 可以是 ASTNode 或 None
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({repr(self.car)}, {repr(self.cdr)})"
+
+
+class QuoteNode(ASTNode):
+    def __init__(self, value):
+        self.value = value
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({repr(self.value)})"
+
+
+class NotFinishError(Exception):
+    # TODO
+    pass
+
+
+class Parser:
+    def __init__(self, lexer: Lexer):
+        self.lexer = lexer
+        self.current_token = self.lexer.next_token()
+
+    @property
+    def current(self) -> Token:
+        return self.current_token
+
+    def parse(self) -> ASTNode:
+        """Entry point of parser"""
+        return self._parse_s_exp()  # repl
+
+    def _consume_token(self) -> Token:
+        token = self.current_token
+        self.current_token = self.lexer.next_token()
+        return token
+
+    def _parse_s_exp(self) -> ASTNode:
+        """Parse a single S-expression"""
+        token = self._consume_token()
+
+        if token.type in ("SYMBOL", "INT", "FLOAT", "STRING", "NIL", "T"):
+            return self._parse_atom(token)
+
+        elif token.type == "QUOTE":
+            return self._parse_quote()
+
+        elif token.type == "LEFT_PAREN":
+            return self._parse_list()
+
+        else:
+            raise SyntaxError(f"Unexpected token: {token}")
+
+    def _parse_list(self) -> ASTNode:
+        """Parse an S-Expression list"""
+        self._consume_token()  # 🔥 consume `LEFT_PAREN`
+        elements = []
+
+        while self.current.type not in ("RIGHT_PAREN", "EOF"):
+            if self.current.type == "DOT":
+                self._consume_token()  # skip `.`
+
+                if self.current.type == "RIGHT_PAREN":  # 🔥 `.` 不能沒有右值
+                    raise SyntaxError(
+                        f"ERROR (unexpected token) : atom or '(' expected when token at Line {self.lexer.line_count} Column {self.lexer.position} is >>)<<"
+                    )
+
+                elif self.current.type == "EOF":
+                    raise SyntaxError("Unexpected EOF while parsing list.")  # 🔥 讓 `repl()` 繼續等待輸入
+
+                right = self._parse_s_exp()
+
+                if self._consume_token().type != "RIGHT_PAREN":
+                    raise SyntaxError("Dotted pair must end with right parenthesis.")
+
+                return ConsNode(elements[0], right) if len(elements) == 1 else ConsNode(ListNode(elements), right)
+
+            elements.append(self._parse_s_exp())
+
+        if self.current.type == "EOF":
+            raise SyntaxError("Unexpected EOF while parsing list.")  # 🔥 讓 `repl()` 繼續等待輸入  # TODO: 新建一個not finish error作為等待輸入
+
+        self._consume_token()  # consume right parenthesis
+
+        if not elements:
+            return AtomNode("NIL", "nil")  # 🔥 `()` 應該回傳 `nil`
+
+        return ListNode(elements)
+
+    def _parse_quote(self) -> ASTNode:
+        if self.current.type == "EOF":
+            raise SyntaxError("Unexpected EOF after quote.")
+
+        return QuoteNode(self._parse_s_exp())  # Consume and parse quoted expression
+
+    def _parse_atom(self, token: Token) -> ASTNode:
+        """Parse atom and preserve type information"""
+        if token.type in ("INT", "FLOAT", "SYMBOL", "STRING"):
+            return AtomNode(token.type, token.value)
+
+        elif token.type == "T":  # #t
+            return AtomNode("BOOLEAN", True)
+
+        elif token.type == "NIL":  # #f
+            return AtomNode("BOOLEAN", False)
+
+        raise SyntaxError(f"Unexpected atom type: {token.type}")
+
+
 def repl():
     lexer = Lexer()
-
     print("Welcome to OurScheme!")
 
+    partial_input = ""  # 存儲多行輸入
     while True:
         try:
-            s_exp = input()
-            if s_exp.lower() == "(exit)":
+            new_input = input()  # 讀取新的一行
+            if new_input.lower() == "(exit)":
                 break
 
-            #
-            if "\\N" in s_exp:
-                s_exp = (s_exp
-                                    .replace("\\n", "\n")
-                                    .replace("\\t", "\t")
-                                    .replace("\\\"", "\""))  # 只轉換 `\"`
+            partial_input += new_input + "\n"  # 🔥 儲存多行輸入
+            lexer.reset(partial_input)
+            parser = Parser(lexer)
 
-            else:
-                s_exp = bytes(s_exp, "utf-8").decode("unicode_escape")
-
-            lexer.reset(s_exp)
-            token = lexer.next_token()
-            while token.type != "EOF":
-                lexer.reset_line_count()
-
-                if token.type == "STRING":
-                    print(f"\n> \"{token.value}\"")
-
-                elif token.type == "LEFT_PAREN":
-                    if lexer.peek_token().type == "RIGHT_PAREN":
-                        _ = lexer.next_token()
-
+            try:
+                result = parser.parse()
+                if isinstance(result, AtomNode) and result.type == "STRING":
+                    print(f'\n> "{result.value}"')
+                elif isinstance(result, ListNode) and not result.elements:
                     print("\n> nil")
-
-                elif token.type == "FLOAT":
-                    print(f"\n> {token.value:.3f}")
-
+                elif isinstance(result, AtomNode) and result.type == "FLOAT":
+                    print(f"\n> {result.value:.3f}")
                 else:
-                    print(f"\n> {token.value}")
-                token = lexer.next_token()
+                    print(f"\n> {result}")
+
+                partial_input = ""  # 解析成功後清空輸入
+
+            except SyntaxError as e:
+                # raise SyntaxError(e)
+
+                if "Unexpected EOF" in str(e):
+                    continue  # 繼續等待輸入（多行解析）
+
+                print(f"\n> {e}")
+                partial_input = ""  # 出錯後清空輸入
 
         except Exception as e:
             print(f"\n> {e}")
-            lexer.reset_line_count()
+            partial_input = ""  # 出錯後清空輸入
 
+        finally:
+            lexer.reset_line_count()
 
     print("Thanks for using OurScheme!")
 

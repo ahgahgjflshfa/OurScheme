@@ -1,3 +1,5 @@
+from functools import partial
+
 from src.lexer import *
 from src.parser import *
 from src.evaluator import Evaluator
@@ -13,24 +15,42 @@ global_env = {
 
 def repl():
     """Scheme REPL（讀取-解析-執行-輸出）"""
+    lexer = Lexer()
     print("Welcome to OurScheme!")
 
+    partial_input = ""  # 存儲多行輸入
     while True:
         try:
-            s_exp = input("> ")
-            if s_exp.lower() in ("exit", "quit"):
+            new_input = input()  # 讀取新的一行
+            if new_input.lower() == "(exit)":
                 break
 
-            lexer = Lexer(s_exp)
+            partial_input += new_input + "\n"  # 🔥 儲存多行輸入
+            lexer.reset(partial_input)
+            parser = Parser(lexer)
 
-            token = lexer.next_token()
-            while token.type != "EOF":
-                print(token)
-                token = lexer.next_token()
+            try:
+                result = parser.parse()
+                if isinstance(result, AtomNode) and result.type == "STRING":
+                    print(f'\n> "{result.value}"')
+                elif isinstance(result, ListNode) and not result.elements:
+                    print("\n> nil")
+                elif isinstance(result, AtomNode) and result.type == "FLOAT":
+                    print(f"\n> {result.value:.3f}")
+                else:
+                    print(f"\n> {result}")
 
-        except EOFError:
-            print("\n> ERROR (no more input) : END-OF-FILE encountered")
-            break
+                partial_input = ""  # 🔥 解析成功後清空輸入
+
+            except SyntaxError as e:
+                if "Unexpected EOF" in str(e):
+                    continue  # 🔥 繼續等待輸入（多行解析）
+                print(f"\n> {e}")
+                partial_input = ""  # 🔥 出錯後清空輸入
+
+        except Exception as e:
+            print(f"\n> {e}")
+            partial_input = ""  # 🔥 出錯後清空輸入
 
     print("Thanks for using OurScheme!")
 
