@@ -76,6 +76,7 @@ class Lexer:
         self._position = 0      # Store current location.
         self._line_number = 1
         self._column_number = 1
+        self._position_offset = 0  # 當前掃描區段在整個 source_code 的偏移量 
 
     @property
     def position(self):
@@ -105,6 +106,13 @@ class Lexer:
         self._position = current_position
         return token
 
+    def set_position(self, pos: int):
+        """
+        將 Lexer 的掃描位置設為 pos，並將 pos 當作新的「Line 1 Column 1」起點。
+        """
+        self._position = pos
+        self._line_number = 1
+        self._column_number = 1
 
     def next_token(self):
         """Return next token from source code"""
@@ -509,7 +517,7 @@ class Parser:
 
     def _parse_quote(self) -> ASTNode:
         if self._current_token.type == "EOF":
-            raise SyntaxError("Unexpected EOF after quote.")
+            raise NotFinishError("Unexpected EOF while parsing list.")
 
         return QuoteNode(self._parse_s_exp())  # Consume and parse quoted expression
 
@@ -599,9 +607,10 @@ def repl():
 
             partial_input += new_input + "\n"  # 儲存多行輸入
 
-            partial_input = partial_input[new_s_exp_start:]
-
             lexer.reset(partial_input.rstrip("\n"))
+
+            lexer.set_position(new_s_exp_start)
+
             parser = Parser(lexer)
 
             try:
