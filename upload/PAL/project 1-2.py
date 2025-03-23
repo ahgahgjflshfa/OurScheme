@@ -2,7 +2,7 @@ import numpy as np
 
 
 class NoClosingQuoteError(Exception):
-    def __init__(self, msg_):
+    def __init__(self, msg_="No Closing Quote"):
         self.msg = msg_
         super().__init__(msg_)
 
@@ -22,7 +22,7 @@ class NotFinishError(Exception):
 
 class EmptyInputError(Exception):
     """遇到註解或是整行空白用的"""
-    def __init__(self, msg_):
+    def __init__(self, msg_="Empty Input"):
         self.msg = msg_
         super().__init__(msg_)
 
@@ -31,7 +31,7 @@ class EmptyInputError(Exception):
 
 
 class UnexpectedTokenError(Exception):
-    def __init__(self, msg_):
+    def __init__(self, msg_="Unexpected Token"):
         self.msg = msg_
         super().__init__(msg_)
 
@@ -76,7 +76,6 @@ class Lexer:
         self._position = 0      # Store current location.
         self._line_number = 1
         self._column_number = 1
-        self._position_offset = 0  # 當前掃描區段在整個 source_code 的偏移量 
 
     @property
     def position(self):
@@ -111,8 +110,6 @@ class Lexer:
         將 Lexer 的掃描位置設為 pos，並將 pos 當作新的「Line 1 Column 1」起點。
         """
         self._position = pos
-        self._line_number = 1
-        self._column_number = 1
 
     def next_token(self):
         """Return next token from source code"""
@@ -199,9 +196,7 @@ class Lexer:
                 self._column_number += 1
 
                 if self.position >= len(self.source_code):
-                    raise NoClosingQuoteError(
-                        f"ERROR (no closing quote) : END-OF-LINE encountered at Line {self._line_number} Column {self._column_number}"
-                    )
+                    raise NoClosingQuoteError()
 
                 if self.source_code[self._position] == "n":
                     result += "\n"
@@ -222,9 +217,7 @@ class Lexer:
             self._position += 1
             self._column_number += 1
 
-        raise NoClosingQuoteError(
-            f"ERROR (no closing quote) : END-OF-LINE encountered at Line {self._line_number} Column {self._column_number}"
-        )
+        raise NoClosingQuoteError()
 
     def _read_number_or_symbol(self):
         """Read number token or symbol starting with a number"""
@@ -268,7 +261,7 @@ class Lexer:
         while self._position < len(self.source_code):
             char = self.source_code[self._position]
 
-            if char.isalnum() or char in "+-*/_!?.#":   # TODO: check legal characters
+            if char.isalnum() or char in "+-*/_!?.#,":   # TODO: check legal characters
                 symbol += char
                 self._position += 1
                 self._column_number += 1
@@ -376,10 +369,17 @@ class QuoteNode(ASTNode):
 class Parser:
     def __init__(self, lexer: Lexer):
         self.lexer = lexer
-        self._current_token = self.lexer.next_token()
+        self._current_s_exp_start_pos = 0  # 記錄當前 S-Expression 的起始 column  ( 以 list 元素編號 )
+        self._last_token_end_pos = 0  # 紀錄最新一個 consume_token 消耗掉的 token 在 source code 中的位置 也是以 list 元素編號
+                                      # 所以 source_code[last_token_end_pos]還是舊的那個token，下一個才不是
 
-        self._current_s_exp_start_pos = 0   # 記錄當前 S-Expression 的起始 column  ( 以 list 元素編號 )
-        self._last_token_end_pos = 0        # 紀錄最新一個 consume_token 消耗掉的 token 在 source code 中的位置 也是以 list 元素編號
+        self._lexer_error = None  # 用來記錄 lexer 拋出的錯誤 ( 如果有 最好不要有 問題一堆 去你的 )
+
+        try:
+            self._current_token = self.lexer.next_token()
+
+        except NoClosingQuoteError:
+            self._handle_lexer_error()
 
         if self._current_token.type == "EOF":   # supposedly only empty line or a line starting with comment will encounter
             raise EmptyInputError(f"EOF encountered")
@@ -395,20 +395,46 @@ class Parser:
         """
         return  self._last_token_end_pos
 
+    @property
+    def lexer_error(self):
+        return self._lexer_error
+
     def parse(self):
         """Entry point of parser"""
         ast = self._parse_s_exp()
 
-        self._current_s_exp_start_pos = self._last_token_end_pos
+        self._current_s_exp_start_pos = self._last_token_end_pos + 1
 
         return ast
+
+    def _handle_lexer_error(self):
+        global_pos = self.lexer.position
+        s_exp_start = self._last_token_end_pos + 1
+        line = 1
+        column = 1
+        for c in self.lexer.source_code[s_exp_start:global_pos]:
+            if c == '\n':
+                line += 1
+                column = 1
+            else:
+                column += 1
+
+        self._lexer_error = NoClosingQuoteError(
+            f"ERROR (no closing quote) : END-OF-LINE encountered at Line {line} Column {column}"
+        )
+        self._current_token = Token("EOF", None)
 
     def _consume_token(self) -> Token:
         token = self._current_token
 
-        self._last_token_end_pos = sum(map(len, self.lexer.source_code.split("\n")[:token.line - 1])) + token.end_pos
+        self._last_token_end_pos = sum(map(len, self.lexer.source_code.split("\n")[:token.line - 1])) + (token.end_pos - 1)
 
-        self._current_token = self.lexer.next_token()
+        try:
+            self._current_token = self.lexer.next_token()
+
+        except NoClosingQuoteError:
+            self._handle_lexer_error()
+
         return token
 
     def _convert_to_cons(self, elements, cdr):
@@ -421,6 +447,21 @@ class Parser:
             result = ConsNode(elem, result)
 
         return result
+
+    def _relative_token_position(self, token: Token):
+        """給定 token，計算相對於 current s-exp 起始點的行列位置（從 1 開始）"""
+        # 先算出 token 的「全域位置」：第幾個字元（以整個字串為基礎）
+        global_char_pos = sum(
+            len(line) + 1 for line in self.lexer.source_code.split("\n")[:token.line - 1]) + token.start_pos - 1
+
+        # 把從目前這個 S-expression 的開始位置，到錯誤 token 位置為止，抓出來
+        relative_text = self.lexer.source_code[self._current_s_exp_start_pos:global_char_pos]
+
+        # 利用 \n 切出行數與欄位數
+        lines = relative_text.split("\n")
+        line = len(lines)
+        column = len(lines[-1]) + 1  # human-style column
+        return line, column
 
     def _parse_s_exp(self) -> ASTNode | None:
         """Parse a single S-expression"""
@@ -440,21 +481,19 @@ class Parser:
             return self._parse_list()
 
         elif token.type == "DOT":
-            pos = (sum(map(len, self.lexer.source_code.split("\n")[:token.line - 1])) + token.end_pos
-                   - self._current_s_exp_start_pos)
             value = token.value
+            line, pos = self._relative_token_position(token)
 
             raise UnexpectedTokenError(
-                f"ERROR (unexpected token) : atom or '(' expected when token at Line {1} Column {pos} is >>{value}<<"
+                f"ERROR (unexpected token) : atom or '(' expected when token at Line {line} Column {pos} is >>{value}<<"
             )
 
         elif token.type == "RIGHT_PAREN":
-            pos = (sum(map(len, self.lexer.source_code.split("\n")[:token.line - 1])) + token.end_pos
-                   - self._current_s_exp_start_pos)
             value = token.value
+            line, pos = self._relative_token_position(token)
 
             raise UnexpectedTokenError(
-                f"ERROR (unexpected token) : atom or '(' expected when token at Line {1} Column {pos} is >>{value}<<"
+                f"ERROR (unexpected token) : atom or '(' expected when token at Line {line} Column {pos} is >>{value}<<"
             )
 
     def _parse_list(self) -> ASTNode:
@@ -464,8 +503,7 @@ class Parser:
         while self._current_token.type not in ("RIGHT_PAREN", "EOF"):
             if self._current_token.type == "DOT":   # 如果遇到 `.`，要轉換成統一的 cons node 結構 e.g. (1 2 . 3) => (1 . (2 . 3))
                 if not elements:
-                    line = self._current_token.line
-                    pos = self._current_token.start_pos
+                    line, pos = self._relative_token_position(self._current_token)
                     value = self._current_token.value
 
                     raise UnexpectedTokenError(
@@ -475,8 +513,7 @@ class Parser:
                 self._consume_token()  # skip `.`
 
                 if self._current_token.type == "RIGHT_PAREN":  # Cons Node 不能沒有 cdr
-                    line = self._current_token.line
-                    pos = self._current_token.start_pos
+                    line, pos = self._relative_token_position(self._current_token)
                     value = self._current_token.value
 
                     raise UnexpectedTokenError(
@@ -495,10 +532,7 @@ class Parser:
                     raise NotFinishError("Unexpected EOF while parsing list.")  # 讓 `repl()` 繼續等待輸入
 
                 elif token.type != "RIGHT_PAREN":
-                    line = token.line
-
-                    pos = token.start_pos
-
+                    line, pos = self._relative_token_position(token)
                     value = token.value
 
                     raise UnexpectedTokenError(f"ERROR (unexpected token) : ')' expected when token at Line {line} Column {pos} is >>{value}<<")
@@ -627,11 +661,15 @@ def repl():
 
                     print("\n> " + pretty_print(result).lstrip("\n"))
 
+                    if parser.lexer_error:
+                        raise parser.lexer_error
+
                 partial_input = ""  # 解析成功後清空輸入
                 new_s_exp_start = 0
 
             except NotFinishError as e:
-                pass    # 讓 repl 等待下一行用戶輸入
+                if parser.lexer_error:
+                    raise parser.lexer_error
 
             except UnexpectedTokenError as e:
                 # e.g. no closing quote ...
