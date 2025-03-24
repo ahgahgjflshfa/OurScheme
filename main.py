@@ -1,61 +1,74 @@
-from functools import partial
-
-from src.lexer import *
 from src.parser import *
-from src.evaluator import Evaluator
-
-global_env = {
-    "+": lambda *args: sum(args),
-    "-": lambda x, y: x - y,
-    "*": lambda x, y: x * y,
-    "/": lambda x, y: x / y if y != 0 else RuntimeError("Division by zero"),
-    "car": lambda pair: pair.car if isinstance(pair, ListNode) else RuntimeError("car: not a pair"),
-    "cdr": lambda pair: pair.cdr if isinstance(pair, ListNode) else RuntimeError("cdr: not a pair"),
-}
+from src.pretty_print import *
 
 def repl():
-    """Scheme REPL（讀取-解析-執行-輸出）"""
     lexer = Lexer()
     print("Welcome to OurScheme!")
 
     partial_input = ""  # 存儲多行輸入
+    new_s_exp_start = 0
     while True:
         try:
             new_input = input()  # 讀取新的一行
             if new_input.lower() == "(exit)":
+                print("\n> ")
                 break
 
-            partial_input += new_input + "\n"  # 🔥 儲存多行輸入
-            lexer.reset(partial_input)
+            partial_input += new_input + "\n"  # 儲存多行輸入
+
+            lexer.reset(partial_input.rstrip("\n"))
+
+            lexer.set_position(new_s_exp_start)
+
             parser = Parser(lexer)
 
+            if parser.lexer_error:
+                raise parser.lexer_error
+
             try:
-                result = parser.parse()
-                if isinstance(result, AtomNode) and result.type == "STRING":
-                    print(f'\n> "{result.value}"')
-                elif isinstance(result, ListNode) and not result.elements:
-                    print("\n> nil")
-                elif isinstance(result, AtomNode) and result.type == "FLOAT":
-                    print(f"\n> {result.value:.3f}")
-                else:
-                    print(f"\n> {result}")
+                while parser.current.type != "EOF":
+                    result = parser.parse()
 
-                partial_input = ""  # 🔥 解析成功後清空輸入
+                    new_s_exp_start = parser.last_s_exp_pos + 1
 
-            except SyntaxError as e:
-                if "Unexpected EOF" in str(e):
-                    continue  # 🔥 繼續等待輸入（多行解析）
+                    # 檢查 `(exit)` 是否是獨立的 S-Expression
+                    if isinstance(result, ConsNode):
+                        if isinstance(result.car, AtomNode) and result.car.value == "exit":
+                            print("\n> \nThanks for using OurScheme!")
+                            return
+
+                    print("\n> " + pretty_print(result).lstrip("\n"))
+
+                    if parser.lexer_error:
+                        raise parser.lexer_error
+
+                partial_input = ""  # 解析成功後清空輸入
+                new_s_exp_start = 0
+
+            except NotFinishError as e:
+                if parser.lexer_error:
+                    raise parser.lexer_error
+
+            except UnexpectedTokenError as e:
+                # e.g. no closing quote ...
                 print(f"\n> {e}")
-                partial_input = ""  # 🔥 出錯後清空輸入
+                partial_input = ""
+                new_s_exp_start = 0
 
-        except Exception as e:
+        except EmptyInputError:
+            continue
+
+        except NoClosingQuoteError as e:
             print(f"\n> {e}")
-            partial_input = ""  # 🔥 出錯後清空輸入
+            partial_input = ""
+            new_s_exp_start = 0
 
-    print("Thanks for using OurScheme!")
+        except EOFError:
+            print("\n> ERROR (no more input) : END-OF-FILE encountered")
+            break
 
+    print("Thanks for using OurScheme!", end="")
 
 if __name__ == "__main__":
     n = input()
     repl()
-    quit(0)

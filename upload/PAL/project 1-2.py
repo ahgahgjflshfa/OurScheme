@@ -81,6 +81,14 @@ class Lexer:
     def position(self):
         return self._position
 
+    @property
+    def line(self):
+        return self._line_number
+
+    @property
+    def column(self):
+        return self._column_number
+
     def reset(self, new_source_code):
         """Reset lexer status, let it tokenize new source code"""
         self.source_code = new_source_code # + "\n"
@@ -140,7 +148,8 @@ class Lexer:
 
         elif char == ".":
             peek = self.peek()
-            if peek and (peek.isdigit() or peek in "eE"):
+            if peek and (peek.isalnum() or peek in "+-*/_!?.#,$%&:<=>@^~"):
+                # 若 . 後面是符號的一部分，那它整體應該是 SYMBOL
                 return self._read_number_or_symbol()
             else:
                 return self._read_dot()
@@ -227,7 +236,7 @@ class Lexer:
         while self._position < len(self.source_code):
             char = self.source_code[self._position]
 
-            if char.isalnum() or char in ('.', '+', '-', 'e', 'E', '_'):
+            if char.isalnum() or char in "+-*/_!?.#,$%&:<=>@^~":
                 number_str += char
                 self._position += 1
                 self._column_number += 1
@@ -370,7 +379,7 @@ class Parser:
     def __init__(self, lexer: Lexer):
         self.lexer = lexer
         self._current_s_exp_start_pos = 0  # 記錄當前 S-Expression 的起始 column  ( 以 list 元素編號 )
-        self._last_token_end_pos = 0  # 紀錄最新一個 consume_token 消耗掉的 token 在 source code 中的位置 也是以 list 元素編號
+        self._last_token_end_pos = -1  # 紀錄最新一個 consume_token 消耗掉的 token 在 source code 中的位置 也是以 list 元素編號
                                       # 所以 source_code[last_token_end_pos]還是舊的那個token，下一個才不是
 
         self._lexer_error = None  # 用來記錄 lexer 拋出的錯誤 ( 如果有 最好不要有 問題一堆 去你的 )
@@ -381,7 +390,7 @@ class Parser:
         except NoClosingQuoteError:
             self._handle_lexer_error()
 
-        if self._current_token.type == "EOF":   # supposedly only empty line or a line starting with comment will encounter
+        if self._current_token.type == "EOF" and self._lexer_error is None:
             raise EmptyInputError(f"EOF encountered")
 
     @property
@@ -409,15 +418,16 @@ class Parser:
 
     def _handle_lexer_error(self):
         global_pos = self.lexer.position
-        s_exp_start = self._last_token_end_pos + 1
-        line = 1
+        s_exp_start = self._last_token_end_pos + 1  # 包含
         column = 1
         for c in self.lexer.source_code[s_exp_start:global_pos]:
             if c == '\n':
-                line += 1
                 column = 1
             else:
                 column += 1
+
+        line = self.lexer.line
+
 
         self._lexer_error = NoClosingQuoteError(
             f"ERROR (no closing quote) : END-OF-LINE encountered at Line {line} Column {column}"
@@ -427,7 +437,12 @@ class Parser:
     def _consume_token(self) -> Token:
         token = self._current_token
 
-        self._last_token_end_pos = sum(map(len, self.lexer.source_code.split("\n")[:token.line - 1])) + (token.end_pos - 1)
+        # TODO: 不知道如果是字串中的換行字元會不會有影響，如果是 list or cons 中有字串包含換行可能就會有問題
+        self._last_token_end_pos = (
+                sum(map(len, self.lexer.source_code.split("\n")[:token.line - 1]))  # 所有前面行的字元數
+                + len(self.lexer.source_code.split("\n")[:token.line - 1])          # 每一行的一個 '\n'（換行補償）
+                + (token.end_pos - 1)                                               # token 在當前行的結束 column（從 1 開始 → 減 1）
+        )
 
         try:
             self._current_token = self.lexer.next_token()
@@ -646,6 +661,9 @@ def repl():
             lexer.set_position(new_s_exp_start)
 
             parser = Parser(lexer)
+
+            if parser.lexer_error:
+                raise parser.lexer_error
 
             try:
                 while parser.current.type != "EOF":
