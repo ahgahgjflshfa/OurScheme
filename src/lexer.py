@@ -103,9 +103,6 @@ class Lexer:
         if char in "()":
             return self._read_paren()
 
-        elif char == "#":
-            return self._read_symbol()
-
         elif char == "\'":
             return self._read_quote()
 
@@ -115,12 +112,9 @@ class Lexer:
         elif char == "\"":
             return self._read_string()
 
-        elif char in ("+", "-", "*", "/") and self.peek().isspace():   # function symbols
-            return self._read_symbol()
-
         elif char == ".":
             peek = self.peek()
-            if peek and (peek.isalnum() or peek in "+-*/_!?.#,$%&:<=>@^~"):
+            if peek and (peek.isalnum() or peek in "!#$%&*+,-./:<=>?@[\\]^_`{|}~"):
                 # 若 . 後面是符號的一部分，那它整體應該是 SYMBOL
                 return self._read_number_or_symbol()
             else:
@@ -130,6 +124,9 @@ class Lexer:
               (char in "+-" and (self.peek().isdigit() or self.peek() == "."))
         ):
             return self._read_number_or_symbol()
+
+        elif char in "!#$%&*+,-./:<=>?@[\\]^_`{|}~":
+            return self._read_symbol()
 
         else:
             return self._read_unknown()
@@ -216,7 +213,7 @@ class Lexer:
         while self._position < len(self.source_code):
             char = self.source_code[self._position]
 
-            if char.isalnum() or char in "+-*/_!?.#,$%&:<=>@^~":
+            if char.isalnum() or char in "!#$%&*+,-./:<=>?@[\\]^_`{|}~":
                 number_str += char
                 self._position += 1
                 self._column_number += 1
@@ -250,7 +247,7 @@ class Lexer:
         while self._position < len(self.source_code):
             char = self.source_code[self._position]
 
-            if char.isalnum() or char in "+-*/_!?.#,":   # TODO: check legal characters
+            if char.isalnum() or char in "!#$%&*+,-./:<=>?@[\\]^_`{|}~":   # TODO: check legal characters
                 symbol += char
                 self._position += 1
                 self._column_number += 1
@@ -309,7 +306,7 @@ class Lexer:
         while self._position < len(self.source_code):
             char = self.source_code[self._position]
 
-            if char.isspace() or char in "()":
+            if char.isspace() or char in "();":
                 break
 
             unknown_str += char

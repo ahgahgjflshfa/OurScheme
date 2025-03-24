@@ -23,7 +23,7 @@ def pretty_print(node, indent=0):
             current = current.cdr
 
         # 如果 `cdr` 最終是 `nil`，則轉換成 ListNode 格式
-        if isinstance(current, AtomNode) and current.value == "nil":    # ( ssp . nil ) === ( sp1 sp2 sp3 ... spn )
+        if isinstance(current, AtomNode) and current.type == "BOOLEAN" and current.value == "nil":    # ( ssp . nil ) === ( sp1 sp2 sp3 ... spn )
             result = f"( {pretty_print(elements[0], indent + 1)}"
 
             for elem in elements[1:]:
@@ -47,7 +47,7 @@ def pretty_print(node, indent=0):
 
     elif isinstance(node, QuoteNode):
         """處理 `quote` 內部的 ListNode，確保 `(` 與 `quote` 的 `q` 對齊"""
-        result = f"{indent_str}( quote"
+        result = f"( quote"
 
         result += f"\n{next_indent_str}{pretty_print(node.value, indent + 1)}"
 

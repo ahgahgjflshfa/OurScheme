@@ -187,9 +187,6 @@ class Lexer:
         if char in "()":
             return self._read_paren()
 
-        elif char == "#":
-            return self._read_symbol()
-
         elif char == "\'":
             return self._read_quote()
 
@@ -199,12 +196,9 @@ class Lexer:
         elif char == "\"":
             return self._read_string()
 
-        elif char in ("+", "-", "*", "/") and self.peek().isspace():   # function symbols
-            return self._read_symbol()
-
         elif char == ".":
             peek = self.peek()
-            if peek and (peek.isalnum() or peek in "+-*/_!?.#,$%&:<=>@^~"):
+            if peek and (peek.isalnum() or peek in "!#$%&*+,-./:<=>?@[\\]^_`{|}~"):
                 # 若 . 後面是符號的一部分，那它整體應該是 SYMBOL
                 return self._read_number_or_symbol()
             else:
@@ -214,6 +208,9 @@ class Lexer:
               (char in "+-" and (self.peek().isdigit() or self.peek() == "."))
         ):
             return self._read_number_or_symbol()
+
+        elif char in "!#$%&*+,-./:<=>?@[\\]^_`{|}~":
+            return self._read_symbol()
 
         else:
             return self._read_unknown()
@@ -300,7 +297,7 @@ class Lexer:
         while self._position < len(self.source_code):
             char = self.source_code[self._position]
 
-            if char.isalnum() or char in "+-*/_!?.#,$%&:<=>@^~":
+            if char.isalnum() or char in "!#$%&*+,-./:<=>?@[\\]^_`{|}~":
                 number_str += char
                 self._position += 1
                 self._column_number += 1
@@ -334,7 +331,7 @@ class Lexer:
         while self._position < len(self.source_code):
             char = self.source_code[self._position]
 
-            if char.isalnum() or char in "+-*/_!?.#,":   # TODO: check legal characters
+            if char.isalnum() or char in "!#$%&*+,-./:<=>?@[\\]^_`{|}~":   # TODO: check legal characters
                 symbol += char
                 self._position += 1
                 self._column_number += 1
@@ -393,7 +390,7 @@ class Lexer:
         while self._position < len(self.source_code):
             char = self.source_code[self._position]
 
-            if char.isspace() or char in "()":
+            if char.isspace() or char in "();":
                 break
 
             unknown_str += char
@@ -639,7 +636,7 @@ def pretty_print(node, indent=0):
             current = current.cdr
 
         # 如果 `cdr` 最終是 `nil`，則轉換成 ListNode 格式
-        if isinstance(current, AtomNode) and current.value == "nil":    # ( ssp . nil ) === ( sp1 sp2 sp3 ... spn )
+        if isinstance(current, AtomNode) and current.type == "BOOLEAN" and current.value == "nil":    # ( ssp . nil ) === ( sp1 sp2 sp3 ... spn )
             result = f"( {pretty_print(elements[0], indent + 1)}"
 
             for elem in elements[1:]:
@@ -663,7 +660,7 @@ def pretty_print(node, indent=0):
 
     elif isinstance(node, QuoteNode):
         """處理 `quote` 內部的 ListNode，確保 `(` 與 `quote` 的 `q` 對齊"""
-        result = f"{indent_str}( quote"
+        result = f"( quote"
 
         result += f"\n{next_indent_str}{pretty_print(node.value, indent + 1)}"
 
