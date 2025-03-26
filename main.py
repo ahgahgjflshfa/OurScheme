@@ -33,7 +33,8 @@ def repl():
 
                     # 檢查 `(exit)` 是否是獨立的 S-Expression
                     if isinstance(result, ConsNode):
-                        if isinstance(result.car, AtomNode) and result.car.value == "exit":
+                        if ((isinstance(result.car, AtomNode) and result.car.type == "SYMBOL" and result.car.value == "exit") and
+                                (isinstance(result.cdr, AtomNode) and result.cdr.type == "BOOLEAN" and result.cdr.value == "nil")):
                             print("\n> \nThanks for using OurScheme!")
                             return
 
