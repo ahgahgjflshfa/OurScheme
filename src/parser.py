@@ -35,7 +35,7 @@ class Parser:
     def lexer_error(self):
         return self._lexer_error
 
-    def parse(self):
+    def parse(self) -> ASTNode:
         """Entry point of parser"""
         ast = self._parse_s_exp()
 
@@ -79,7 +79,7 @@ class Parser:
 
         return token
 
-    def _convert_to_cons(self, elements, cdr):
+    def _convert_to_cons(self, elements: list, cdr: ASTNode) -> ASTNode:
         if not elements:
             return AtomNode("BOOLEAN", "nil")
 

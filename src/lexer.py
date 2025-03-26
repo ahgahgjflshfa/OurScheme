@@ -43,18 +43,18 @@ class Lexer:
         self._column_number = 1
 
     @property
-    def position(self):
+    def position(self) -> int:
         return self._position
 
     @property
-    def line(self):
+    def line(self) -> int:
         return self._line_number
 
     @property
-    def column(self):
+    def column(self) -> int:
         return self._column_number
 
-    def reset(self, new_source_code):
+    def reset(self, new_source_code: str):
         """Reset lexer status, let it tokenize new source code"""
         self.source_code = new_source_code # + "\n"
         self._position = 0
@@ -68,11 +68,11 @@ class Lexer:
         """
         return self._position < len(self.source_code)
 
-    def peek(self):
+    def peek(self) -> str:
         """Peek next character"""
         return self.source_code[self._position + 1] if self._position + 1 < len(self.source_code) else ""
 
-    def peek_token(self):
+    def peek_token(self) -> Token:
         current_position = self._position
         token = self.next_token()
         self._position = current_position
@@ -84,7 +84,7 @@ class Lexer:
         """
         self._position = pos
 
-    def next_token(self):
+    def next_token(self) -> Token:
         """
         獲取下一個語法記號的主要分發方法
         處理流程：
@@ -106,7 +106,7 @@ class Lexer:
         elif char == "\'":
             return self._read_quote()
 
-        elif char.isalpha():
+        elif char.isalpha() or char in "!#$%&*,/:<=>?@[\\]^_`{|}~":
             return self._read_symbol()
 
         elif char == "\"":
@@ -129,7 +129,9 @@ class Lexer:
             return self._read_symbol()
 
         else:
-            return self._read_unknown()
+            self._column_number += 1
+            pos = self._column_number - 1
+            raise SyntaxError(f"Unknown character: {char} at line {self._line_number} column {pos}")
 
     def _skip_whitespace_and_comments(self):
         """Skips whitespace and comments"""
@@ -152,7 +154,7 @@ class Lexer:
             else:
                 break
 
-    def _read_string(self):
+    def _read_string(self) -> Token:
         """
         讀取字串記號並處理轉義字符
         當遇到未閉合引號時，使用 start_pos 和當前位置精確拋出錯誤位置
@@ -205,7 +207,7 @@ class Lexer:
 
         raise NoClosingQuoteError()
 
-    def _read_number_or_symbol(self):
+    def _read_number_or_symbol(self) -> Token:
         """Read number token or symbol starting with a number"""
         start_pos = self._column_number
         number_str = ""
@@ -239,7 +241,7 @@ class Lexer:
         except ValueError:
             return Token("SYMBOL", number_str, self._line_number, start_pos, end_pos)
 
-    def _read_symbol(self):
+    def _read_symbol(self) -> Token:
         """Read symbol token (variable names, function names)"""
         start_pos = self._column_number
         symbol = ""
@@ -271,7 +273,7 @@ class Lexer:
 
         return Token("SYMBOL", symbol, self._line_number, start_pos, end_pos)
 
-    def _read_dot(self):
+    def _read_dot(self) -> Token:
         """Read DOT (.)"""
         dot_pos = self._column_number
         self._position += 1
@@ -279,7 +281,7 @@ class Lexer:
 
         return Token("DOT", ".", self._line_number, dot_pos, dot_pos)
 
-    def _read_quote(self):
+    def _read_quote(self) -> Token:
         """Read quote"""
         quote_pos = self._column_number
         self._position += 1
@@ -287,7 +289,7 @@ class Lexer:
 
         return Token("QUOTE", "quote", self._line_number, quote_pos, quote_pos)
 
-    def _read_paren(self):
+    def _read_paren(self) -> Token:
         """Read parenthesis"""
         char = self.source_code[self._position]
         paren_pos = self._column_number
@@ -299,7 +301,7 @@ class Lexer:
         else:
             return Token("RIGHT_PAREN", ")", self._line_number, paren_pos, paren_pos)
 
-    def _read_unknown(self):
+    def _read_unknown(self) -> Token:
         start_pos = self._column_number
         unknown_str = ""
 

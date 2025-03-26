@@ -1,6 +1,6 @@
 from .ast_nodes import *
 
-def pretty_print(node, indent=0):
+def pretty_print(node, indent: int = 0):
     """格式化 Pretty Print 輸出 Scheme AST，確保排版嚴格符合要求"""
     indent_str = "  " * indent  # 當前縮排
     next_indent_str = "  " * (indent + 1)  # 下一層縮排
