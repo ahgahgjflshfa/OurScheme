@@ -22,9 +22,6 @@ def repl():
 
             parser = Parser(lexer)
 
-            if parser.lexer_error:
-                raise parser.lexer_error
-
             try:
                 while parser.current.type != "EOF":
                     result = parser.parse()
@@ -40,15 +37,11 @@ def repl():
 
                     print("\n> " + pretty_print(result).lstrip("\n"))
 
-                    if parser.lexer_error:
-                        raise parser.lexer_error
-
                 partial_input = ""  # 解析成功後清空輸入
                 new_s_exp_start = 0
 
-            except NotFinishError as e:
-                if parser.lexer_error:
-                    raise parser.lexer_error
+            except NotFinishError:
+                pass
 
             except UnexpectedTokenError as e:
                 # e.g. no closing quote ...

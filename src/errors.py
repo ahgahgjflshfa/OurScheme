@@ -1,10 +1,8 @@
 class NoClosingQuoteError(Exception):
-    def __init__(self, msg_="No Closing Quote"):
-        self.msg = msg_
-        super().__init__(msg_)
-
-    def __str__(self):
-        return self.msg
+    def __init__(self, line, column):
+        self.line = line
+        self.column = column
+        super().__init__(f"ERROR (no closing quote) : END-OF-LINE encountered at Line {line} Column {column}")
 
 
 class NotFinishError(Exception):

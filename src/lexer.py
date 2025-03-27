@@ -184,7 +184,7 @@ class Lexer:
                 self._column_number += 1
 
                 if self.position >= len(self.source_code):
-                    raise NoClosingQuoteError()
+                    return Token("ERROR", "Unclosed string", self._line_number, self._column_number)
 
                 if self.source_code[self._position] == "n":
                     result += "\n"
@@ -205,7 +205,8 @@ class Lexer:
             self._position += 1
             self._column_number += 1
 
-        raise NoClosingQuoteError()
+        # 未找到閉合引號，拋出帶有當前位置的錯誤
+        return Token("ERROR", "Unclosed string", self._line_number, self._column_number)
 
     def _read_number_or_symbol(self) -> Token:
         """Read number token or symbol starting with a number"""
