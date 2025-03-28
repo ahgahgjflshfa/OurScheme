@@ -67,7 +67,7 @@ In Project 1, you have done the following :
 For Project 2, you are to extend your system so that the following are
 realized (by your system).
 
-  ＊ All "primitive exressions" (expressions that involve primitive 
+  ＊ All "primitive expressions" (expressions that involve primitive
      operations) can be evaluated.
   
   ＊ 'define' is supported (but no definition (and use) of functions yet)
@@ -240,7 +240,7 @@ Welcome to OurScheme!
 ( 3
 )
 
-> (CONS 3 4)      ; Scheme distinquishs between upper and lower cases
+> (CONS 3 4)      ; Scheme distinguishes between upper and lower cases
 ERROR (unbound symbol) : CONS
 
 > (cons hello 4)

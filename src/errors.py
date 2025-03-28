@@ -1,8 +1,11 @@
+from src.pretty_print import pretty_print
+
+
 class NoClosingQuoteError(Exception):
-    def __init__(self, line, column):
-        self.line = line
-        self.column = column
-        super().__init__(f"ERROR (no closing quote) : END-OF-LINE encountered at Line {line} Column {column}")
+    def __init__(self, line_, column_):
+        self.line = line_
+        self.column = column_
+        super().__init__(f"ERROR (no closing quote) : END-OF-LINE encountered at Line {self.line} Column {self.column}")
 
 
 class NotFinishError(Exception):
@@ -32,3 +35,15 @@ class UnexpectedTokenError(Exception):
 
     def __str__(self):
         return self.msg
+
+
+class DefineError(Exception):
+    def __init__(self, value_):
+        self.value = value_
+        super().__init__(f"ERROR (DEFINE format) : {pretty_print(self.value)}")
+
+
+class UnboundSymbolError(Exception):
+    def __init__(self, symbol_):
+        self.symbol = symbol_
+        super().__init__(f"ERROR (unbound symbol) : {self.symbol}")

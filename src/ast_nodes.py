@@ -15,14 +15,6 @@ class AtomNode(ASTNode):
         return f"{self.__class__.__name__}({self.type}, {repr(self.value)})"
 
 
-class ListNode(ASTNode):
-    def __init__(self, elements=None):
-        self.elements = elements if elements is not None else []
-
-    def __repr__(self):
-        return f"{self.__class__.__name__}({repr(self.elements)})"
-
-
 class ConsNode(ASTNode):
     def __init__(self, car: ASTNode, cdr: ASTNode = None):
         self.car = car

@@ -1,5 +1,5 @@
 import numpy as np
-from .errors import *
+
 
 class Token:
     def __init__(self, type_, value_, line_= 0, start_pos_ = 0, end_pos_ = 0):

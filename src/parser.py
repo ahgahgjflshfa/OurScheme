@@ -1,6 +1,7 @@
-from .lexer import *
-from .ast_nodes import *
-from .errors import *
+from src.lexer import *
+from src.ast_nodes import *
+from src.errors import NoClosingQuoteError, NotFinishError, EmptyInputError, UnexpectedTokenError
+
 
 class Parser:
     def __init__(self, lexer: Lexer):

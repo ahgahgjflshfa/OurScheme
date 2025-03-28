@@ -1,4 +1,4 @@
-from .ast_nodes import *
+from src.ast_nodes import *
 
 def pretty_print(node, indent: int = 0):
     """格式化 Pretty Print 輸出 Scheme AST，確保排版嚴格符合要求"""
