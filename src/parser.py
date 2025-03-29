@@ -1,4 +1,4 @@
-from src.lexer import *
+from src.lexer import Lexer, Token
 from src.ast_nodes import *
 from src.errors import NoClosingQuoteError, NotFinishError, EmptyInputError, UnexpectedTokenError
 

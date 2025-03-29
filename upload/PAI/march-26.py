@@ -331,7 +331,7 @@ class Lexer:
         while self._position < len(self.source_code):
             char = self.source_code[self._position]
 
-            if char.isalnum() or char in "!#$%&*+,-./:<=>?@[\\]^_`{|}~":   # TODO: check legal characters
+            if char.isalnum() or char in "!#$%&*+,-./:<=>?@[\\]^_`{|}~":
                 symbol += char
                 self._position += 1
                 self._column_number += 1
@@ -465,7 +465,6 @@ class Parser:
     def _consume_token(self) -> Token:
         token = self._current_token
 
-        # TODO: 不知道如果是字串中的換行字元會不會有影響，如果是 list or cons 中有字串包含換行可能就會有問題
         self._last_token_end_pos = (
                 sum(map(len, self.lexer.source_code.split("\n")[:token.line - 1]))  # 所有前面行的字元數
                 + len(self.lexer.source_code.split("\n")[:token.line - 1])          # 每一行的一個 '\n'（換行補償）

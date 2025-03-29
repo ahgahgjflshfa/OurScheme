@@ -1,5 +1,9 @@
-from src.parser import *
-from src.pretty_print import *
+from src.errors import *
+from src.ast_nodes import *
+from src.lexer import Lexer
+from src.parser import Parser
+from src.pretty_print import pretty_print
+from src.evaluator import evaluate
 
 
 def repl():
@@ -25,6 +29,7 @@ def repl():
 
             try:
                 while parser.current.type != "EOF":
+                    # Parse
                     result = parser.parse()
 
                     new_s_exp_start = parser.last_s_exp_pos + 1
@@ -36,7 +41,27 @@ def repl():
                             print("\n> \nThanks for using OurScheme!")
                             return
 
-                    print("\n> " + pretty_print(result).lstrip("\n"))
+                    # print("\n> " + pretty_print(result).lstrip("\n"))
+
+                    # Eval
+                    try:
+                        eval_result = evaluate(result)
+                        print(f"\n> {pretty_print(eval_result).lstrip("\n")}")
+
+                    except DefineError as e:
+                        print(f"\n> {str(e)} : {pretty_print(result)}")
+
+                    except UnboundSymbolError as e:
+                        print(f"\n> {str(e)} : {e.symbol}")
+
+                    except IncorrectArgumentType as e:
+                        print(f"\n> {str(e)} : {pretty_print(e.arg)}")
+
+                    except NotCallableError as e:
+                        print(f"\n> {str(e)} : {pretty_print(e.operator)}")
+
+                    except NonListError as e:
+                        print(f"\n> {str(e)} : {pretty_print(result)}")
 
                 partial_input = ""  # 解析成功後清空輸入
                 new_s_exp_start = 0
@@ -50,13 +75,13 @@ def repl():
                 partial_input = ""
                 new_s_exp_start = 0
 
-        except EmptyInputError:
-            continue
+            except EmptyInputError:
+                continue
 
-        except NoClosingQuoteError as e:
-            print(f"\n> {e}")
-            partial_input = ""
-            new_s_exp_start = 0
+            except NoClosingQuoteError as e:
+                print(f"\n> {e}")
+                partial_input = ""
+                new_s_exp_start = 0
 
         except EOFError:
             print("\n> ERROR (no more input) : END-OF-FILE encountered")

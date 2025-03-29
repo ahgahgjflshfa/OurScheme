@@ -1,8 +1,13 @@
-from src.pretty_print import pretty_print
+from src.ast_nodes import AtomNode
+
+class OurSchemeError(Exception):
+    def __init__(self, err_type_: str):
+        self.err_type = err_type_
+        super().__init__(f"ERROR ({err_type_})")
 
 
 class NoClosingQuoteError(Exception):
-    def __init__(self, line_, column_):
+    def __init__(self, line_: int, column_: int):
         self.line = line_
         self.column = column_
         super().__init__(f"ERROR (no closing quote) : END-OF-LINE encountered at Line {self.line} Column {self.column}")
@@ -10,7 +15,7 @@ class NoClosingQuoteError(Exception):
 
 class NotFinishError(Exception):
     """讓parser等待多行輸入"""
-    def __init__(self, msg_="S expression not complete"):
+    def __init__(self, msg_: str="S expression not complete"):
         self.msg = msg_
         super().__init__(msg_)
 
@@ -20,7 +25,7 @@ class NotFinishError(Exception):
 
 class EmptyInputError(Exception):
     """遇到註解或是整行空白用的"""
-    def __init__(self, msg_="Empty Input"):
+    def __init__(self, msg_: str="Empty Input"):
         self.msg = msg_
         super().__init__(msg_)
 
@@ -29,7 +34,7 @@ class EmptyInputError(Exception):
 
 
 class UnexpectedTokenError(Exception):
-    def __init__(self, msg_="Unexpected Token"):
+    def __init__(self, msg_: str="Unexpected Token"):
         self.msg = msg_
         super().__init__(msg_)
 
@@ -37,13 +42,44 @@ class UnexpectedTokenError(Exception):
         return self.msg
 
 
-class DefineError(Exception):
-    def __init__(self, value_):
-        self.value = value_
-        super().__init__(f"ERROR (DEFINE format) : {pretty_print(self.value)}")
+class DefineError(OurSchemeError):
+    def __init__(self):
+        super().__init__(f"DEFINE format")
 
 
-class UnboundSymbolError(Exception):
-    def __init__(self, symbol_):
+class UnboundSymbolError(OurSchemeError):
+    def __init__(self, symbol_: str):
         self.symbol = symbol_
-        super().__init__(f"ERROR (unbound symbol) : {self.symbol}")
+        super().__init__(f"unbound symbol")
+
+
+class IncorrectArgumentType(OurSchemeError):
+    def __init__(self, operator_: str | int | float, arg_: any):
+        self.operator = operator_
+        self.arg = arg_
+        super().__init__(f"{operator_} with incorrect argument type")
+
+
+class NotCallableError(OurSchemeError):
+    def __init__(self, operator_: AtomNode):
+        self.operator = operator_
+        super().__init__(f"attempt to apply non-function")
+
+
+class NonListError(OurSchemeError):
+    def __init__(self):
+        super().__init__(f"non-list")
+
+
+__all__ = [
+    "OurSchemeError",
+    "NoClosingQuoteError",
+    "NotFinishError",
+    "EmptyInputError",
+    "UnexpectedTokenError",
+    "DefineError",
+    "UnboundSymbolError",
+    "IncorrectArgumentType",
+    "NotCallableError",
+    "NonListError"
+]

@@ -13,6 +13,10 @@ class Environment:
         self.user_define[symbol] = value
 
     def lookup(self, symbol: str):
+        """
+        :param symbol: symbol name
+        :return: A callable function (e.g. primitive like PrimAdd)
+        """
         if symbol in self.user_define:
             return self.user_define[symbol]
 

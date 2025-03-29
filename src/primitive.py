@@ -1,4 +1,19 @@
+from src.ast_nodes import *
+from src.errors import IncorrectArgumentType
 
+
+def PrimAdd(args: list[ASTNode]):
+    total = 0
+    have_float = False
+    for arg in args:
+        if not isinstance(arg, AtomNode) or arg.type not in ("INT", "FLOAT"):
+            raise IncorrectArgumentType("+", arg)
+
+        if arg.type == "FLOAT": have_float = True
+
+        total += arg.value
+
+    return AtomNode("FLOAT", total) if have_float else AtomNode("INT", total)
 
 global_func = {
     # 1. Constructors
@@ -28,7 +43,7 @@ global_func = {
     "symbol?":  None,
 
     # 6. Basic arithmetic, logical and string operations
-    "+":        None,
+    "+":        PrimAdd,
     "-":        None,
     "*":        None,
     "//":       None,
