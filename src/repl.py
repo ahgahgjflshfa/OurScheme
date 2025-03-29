@@ -75,13 +75,13 @@ def repl():
                 partial_input = ""
                 new_s_exp_start = 0
 
-            except EmptyInputError:
-                continue
-
             except NoClosingQuoteError as e:
                 print(f"\n> {e}")
                 partial_input = ""
                 new_s_exp_start = 0
+
+        except EmptyInputError:
+            continue
 
         except EOFError:
             print("\n> ERROR (no more input) : END-OF-FILE encountered")
