@@ -34,7 +34,7 @@ def repl():
 
                     new_s_exp_start = parser.last_s_exp_pos + 1
 
-                    # check if (exit) are a independent s exp
+                    # check if (exit) are an independent s exp
                     if isinstance(result, ConsNode):
                         if ((isinstance(result.car, AtomNode) and result.car.type == "SYMBOL" and result.car.value == "exit") and
                                 (isinstance(result.cdr, AtomNode) and result.cdr.type == "BOOLEAN" and result.cdr.value == "nil")):
@@ -44,9 +44,20 @@ def repl():
                     # Eval
                     try:
                         eval_result = evaluate(result)
-                        print(f"\n> {pretty_print(eval_result).lstrip("\n")}")
 
-                    except DefineError as e:
+                        # 特判 define，輸出 "x defined"
+                        if (isinstance(result, ConsNode) and
+                                isinstance(result.car, AtomNode) and result.car.value == "define" and
+                                isinstance(result.cdr, ConsNode) and
+                                isinstance(result.cdr.car, AtomNode)):
+
+                            var_name = result.cdr.car.value
+                            print(f"\n> {var_name} defined")
+
+                        else:
+                            print(f"\n> {pretty_print(eval_result).lstrip('\n')}")
+
+                    except DefineFormatError as e:
                         print(f"\n> {str(e)} : {pretty_print(result)}")
 
                     except UnboundSymbolError as e:
@@ -59,7 +70,13 @@ def repl():
                         print(f"\n> {str(e)} : {pretty_print(e.operator)}")
 
                     except NonListError as e:
-                        print(f"\n> {str(e)} : {pretty_print(result)}")
+                        print(f"\n> {str(e)} : {pretty_print(e.ast)}")
+
+                    except DivisionByZeroError as e:
+                        print(f"\n> {str(e)} : /")
+
+                    except IncorrectArgumentNumber as e:
+                        print(f"\n> {str(e)} : {e.operator}")
 
                 partial_input = ""  # after parsing, clear input
                 new_s_exp_start = 0

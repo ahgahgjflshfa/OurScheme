@@ -1,3 +1,5 @@
+from src.errors import NonListError
+
 class ASTNode:
     def __eq__(self, other):
         return isinstance(other, self.__class__) and vars(self) == vars(other)
@@ -22,6 +24,15 @@ class ConsNode(ASTNode):
 
     def __repr__(self):
         return f"{self.__class__.__name__}({repr(self.car)}, {repr(self.cdr)})"
+
+    def __iter__(self):
+        curr = self
+        while isinstance(curr, ConsNode):
+            yield curr.car
+            curr = curr.cdr
+
+        if not (isinstance(curr, AtomNode) and curr.value == "nil"):
+            raise NonListError(self)
 
 
 class QuoteNode(ASTNode):

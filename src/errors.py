@@ -1,5 +1,3 @@
-from src.ast_nodes import AtomNode
-
 class OurSchemeError(Exception):
     def __init__(self, err_type_: str):
         self.err_type = err_type_
@@ -42,7 +40,7 @@ class UnexpectedTokenError(Exception):
         return self.msg
 
 
-class DefineError(OurSchemeError):
+class DefineFormatError(OurSchemeError):
     def __init__(self):
         super().__init__(f"DEFINE format")
 
@@ -61,14 +59,26 @@ class IncorrectArgumentType(OurSchemeError):
 
 
 class NotCallableError(OurSchemeError):
-    def __init__(self, operator_: AtomNode):
+    def __init__(self, operator_: "AtomNode"):
         self.operator = operator_
         super().__init__(f"attempt to apply non-function")
 
 
 class NonListError(OurSchemeError):
-    def __init__(self):
+    def __init__(self, ast_):
+        self.ast = ast_
         super().__init__(f"non-list")
+
+
+class DivisionByZeroError(OurSchemeError):
+    def __init__(self):
+        super().__init__(f"division by zero")
+
+
+class IncorrectArgumentNumber(OurSchemeError):
+    def __init__(self, operator_: str):
+        self.operator = operator_
+        super().__init__(f"incorrect number of arguments")
 
 
 __all__ = [
@@ -77,9 +87,11 @@ __all__ = [
     "NotFinishError",
     "EmptyInputError",
     "UnexpectedTokenError",
-    "DefineError",
+    "DefineFormatError",
     "UnboundSymbolError",
     "IncorrectArgumentType",
     "NotCallableError",
-    "NonListError"
+    "NonListError",
+    "DivisionByZeroError",
+    "IncorrectArgumentNumber"
 ]

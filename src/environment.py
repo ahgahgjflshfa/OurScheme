@@ -1,4 +1,4 @@
-from src.errors import DefineError, UnboundSymbolError
+from src.errors import DefineFormatError, UnboundSymbolError
 
 
 class Environment:
@@ -8,7 +8,7 @@ class Environment:
 
     def define(self, symbol: str, value):
         if symbol in self.builtins:
-            raise DefineError(value)
+            raise DefineFormatError(value)
 
         self.user_define[symbol] = value
 

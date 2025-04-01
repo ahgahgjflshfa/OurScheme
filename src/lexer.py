@@ -178,7 +178,7 @@ class Lexer:
         """
         # Record starting position of string (starting quote not included)
         start_pos = self._column_number
-        self._position += 1  # 跳過開頭 " 符號
+        self._position += 1  # skip "
         self._column_number += 1
         result = ""
 
@@ -186,7 +186,7 @@ class Lexer:
             char = self.source_code[self._position]
 
             if self.source_code[self.position] == "\"":
-                end_pos = self._column_number   # 包含 "
+                end_pos = self._column_number   # includes "
                 self._position += 1
                 self._column_number += 1
 
@@ -273,7 +273,7 @@ class Lexer:
         while self._position < len(self.source_code):
             char = self.source_code[self._position]
 
-            if char.isalnum() or char in "!#$%&*+,-./:<=>?@[\\]^_`{|}~":   # TODO: check legal characters
+            if char.isalnum() or char in "!#$%&*+,-./:<=>?@[\\]^_`{|}~":
                 symbol += char
                 self._position += 1
                 self._column_number += 1
