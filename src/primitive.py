@@ -237,7 +237,7 @@ def prim_divide(args: list[ASTNode]) -> AtomNode:
 
         total /= arg.value
 
-    return AtomNode("FLOAT", total) if have_float else AtomNode("INT", total)
+    return AtomNode("FLOAT", total) if have_float or not total.is_integer() else AtomNode("INT", int(total))
 
 
 global_func = {
@@ -265,7 +265,7 @@ global_func = {
     "+":        prim_add,
     "-":        prim_sub,
     "*":        prim_multiply,
-    "//":       prim_divide,
+    "/":       prim_divide,
 
     "not":      None,
     "and":      None,

@@ -8,7 +8,7 @@ class Environment:
 
     def define(self, symbol: str, value):
         if symbol in self.builtins:
-            raise DefineFormatError(value)
+            raise DefineFormatError()
 
         self.user_define[symbol] = value
 
