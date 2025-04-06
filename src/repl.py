@@ -1,9 +1,9 @@
-from src.errors import *
 from src.ast_nodes import *
+from src.errors import *
+from src.evaluator import Evaluator
 from src.lexer import Lexer
 from src.parser import Parser
 from src.pretty_print import pretty_print
-from src.evaluator import Evaluator
 
 
 def repl():
@@ -34,15 +34,17 @@ def repl():
 
             # Parsing
             try:
-                while parser.current.type != "EOF": # Parse until lexer reached the end
+                while parser.current.type != "EOF":  # Parse until lexer reached the end
                     result = parser.parse()
 
                     new_s_exp_start = parser.last_s_exp_pos + 1
 
                     # check if (exit) are an independent s exp
                     if isinstance(result, ConsNode):
-                        if ((isinstance(result.car, AtomNode) and result.car.type == "SYMBOL" and result.car.value == "exit") and
-                                (isinstance(result.cdr, AtomNode) and result.cdr.type == "BOOLEAN" and result.cdr.value == "nil")):
+                        if ((isinstance(result.car,
+                                        AtomNode) and result.car.type == "SYMBOL" and result.car.value == "exit") and
+                                (isinstance(result.cdr,
+                                            AtomNode) and result.cdr.type == "BOOLEAN" and result.cdr.value == "nil")):
                             print("\nThanks for using OurScheme!")
                             return
 
@@ -87,7 +89,7 @@ def repl():
                 new_s_exp_start = 0
 
             except NotFinishError:
-                empty_line_encountered = True   # wait for user input, so do nothing
+                empty_line_encountered = True  # wait for user input, so do nothing
                 continue
 
             except NoClosingQuoteError as e:

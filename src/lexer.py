@@ -2,7 +2,7 @@ import numpy as np
 
 
 class Token:
-    def __init__(self, type_, value_, line_= 0, start_pos_ = 0, end_pos_ = 0):
+    def __init__(self, type_, value_, line_=0, start_pos_=0, end_pos_=0):
         """
         Initialize a Token object.
 
@@ -17,8 +17,8 @@ class Token:
         self.type = type_
         self.value = value_
         self.line = line_
-        self.start_pos = start_pos_ # Start index in the source string
-        self.end_pos = end_pos_     # End index in the source string (inclusive)
+        self.start_pos = start_pos_  # Start index in the source string
+        self.end_pos = end_pos_  # End index in the source string (inclusive)
 
     def __repr__(self):
         return f"Token({self.type}, {repr(self.value)})"
@@ -32,8 +32,8 @@ class Token:
 
 class Lexer:
     def __init__(self):
-        self.source_code = ""   # Store 1 line of user input in repl.
-        self._position = 0      # Store current location.
+        self.source_code = ""  # Store 1 line of user input in repl.
+        self._position = 0  # Store current location.
         self._line_number = 1
         self._column_number = 1
 
@@ -56,7 +56,7 @@ class Lexer:
         Args:
             new_source_code (str): The new code to be tokenized.
         """
-        self.source_code = new_source_code # + "\n"
+        self.source_code = new_source_code  # + "\n"
         self._position = 0
         self._line_number = 1
         self._column_number = 1
@@ -162,7 +162,7 @@ class Lexer:
                 self._column_number += 1
                 self._position += 1
 
-            elif char == ";":   # comments
+            elif char == ";":  # comments
                 while self._position < len(self.source_code) and self.source_code[self._position] != "\n":
                     self._position += 1
 
@@ -186,7 +186,7 @@ class Lexer:
             char = self.source_code[self._position]
 
             if self.source_code[self.position] == "\"":
-                end_pos = self._column_number   # includes "
+                end_pos = self._column_number  # includes "
                 self._position += 1
                 self._column_number += 1
 
@@ -241,7 +241,6 @@ class Lexer:
 
             else:
                 break
-
 
         end_pos = self._column_number - 1
 

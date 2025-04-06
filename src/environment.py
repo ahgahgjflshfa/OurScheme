@@ -2,7 +2,7 @@ from src.errors import DefineFormatError, UnboundSymbolError
 
 
 class Environment:
-    def __init__(self, builtins = None):
+    def __init__(self, builtins=None):
         self.builtins = builtins or {}
         self.user_define = {}
 

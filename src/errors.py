@@ -1,6 +1,7 @@
 class NotFinishError(Exception):
     """讓parser等待多行輸入"""
-    def __init__(self, msg_: str="S expression not complete"):
+
+    def __init__(self, msg_: str = "S expression not complete"):
         self.msg = msg_
         super().__init__(msg_)
 
@@ -10,7 +11,8 @@ class NotFinishError(Exception):
 
 class EmptyInputError(Exception):
     """遇到註解或是整行空白用的"""
-    def __init__(self, msg_: str="Empty Input"):
+
+    def __init__(self, msg_: str = "Empty Input"):
         self.msg = msg_
         super().__init__(msg_)
 

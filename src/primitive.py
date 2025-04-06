@@ -1,6 +1,6 @@
 from src.ast_nodes import *
-from src.errors import IncorrectArgumentType, DivisionByZeroError, IncorrectArgumentNumber
 from src.environment import Environment
+from src.errors import IncorrectArgumentType, DivisionByZeroError, IncorrectArgumentNumber
 
 
 class PrimitiveFunction:
@@ -26,8 +26,8 @@ class PrimitiveFunction:
 def primitive(name=None, min_args=None, max_args=None):
     def decorator(func):
         return PrimitiveFunction(
-            name = name or func.__name__,
-            func = func,
+            name=name or func.__name__,
+            func=func,
             min_args=min_args,
             max_args=max_args
         )
@@ -258,7 +258,6 @@ def prim_divide(args: list[ASTNode], _) -> AtomNode:
 
     if not_number:
         raise IncorrectArgumentType("/", not_number)
-
 
     total = args[0].value
     have_float = False

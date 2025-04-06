@@ -1,16 +1,16 @@
 from src.ast_nodes import *
-from src.environment import Environment
 from src.builtins_registry import built_in_funcs
-from src.errors import NotCallableError, DefineFormatError, NonListError
+from src.environment import Environment
+from src.errors import NotCallableError, NonListError
 from src.special_forms import SpecialForm
 
 
 class Evaluator:
-    def __init__(self, builtins: dict[str, object]=None, env: Environment=None):
+    def __init__(self, builtins: dict[str, object] = None, env: Environment = None):
         self.builtins = builtins if builtins is not None else built_in_funcs
         self.env = env if env is not None else Environment(self.builtins)
 
-    def evaluate(self, ast: ASTNode, env: Environment=None):
+    def evaluate(self, ast: ASTNode, env: Environment = None):
         env = env if env is not None else self.env
 
         if isinstance(ast, AtomNode):
@@ -27,9 +27,9 @@ class Evaluator:
             operator = self.evaluate(operator_node, env)
             args = Evaluator.extract_list(ast)
 
-            if isinstance(operator, SpecialForm):   # Special forms
+            if isinstance(operator, SpecialForm):  # Special forms
                 return self.apply_function(operator, args, env)
-            else:   # Primitive functions
+            else:  # Primitive functions
                 evaluated_args = self.eval_list(args, env)
                 return self.apply_function(operator, evaluated_args, env)
 

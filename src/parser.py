@@ -1,6 +1,6 @@
-from src.lexer import Lexer, Token
 from src.ast_nodes import *
 from src.errors import NoClosingQuoteError, NotFinishError, EmptyInputError, UnexpectedTokenError
+from src.lexer import Lexer, Token
 
 
 class Parser:
@@ -75,9 +75,11 @@ class Parser:
         token = self._current_token
 
         self._last_token_end_pos = (
-                sum(map(len, self.lexer.source_code.split("\n")[:token.line - 1]))  # Total number of characters in all lines before the current one
-                + len(self.lexer.source_code.split("\n")[:token.line - 1])          # One '\n' for each previous line (newline compensation)
-                + (token.end_pos - 1)                                               # End column of the token in its line (1-based → subtract 1)
+                sum(map(len, self.lexer.source_code.split("\n")[
+                             :token.line - 1]))  # Total number of characters in all lines before the current one
+                + len(self.lexer.source_code.split("\n")[
+                      :token.line - 1])  # One '\n' for each previous line (newline compensation)
+                + (token.end_pos - 1)  # End column of the token in its line (1-based → subtract 1)
         )
 
         self._current_token = self.lexer.next_token()
@@ -156,7 +158,7 @@ class Parser:
 
         elif token.type == "LEFT_PAREN":
             if self._current_token.type == "RIGHT_PAREN":
-                self._consume_token()   # consume right parenthesis
+                self._consume_token()  # consume right parenthesis
                 return AtomNode("BOOLEAN", "nil")
 
             return self._parse_list()
@@ -212,14 +214,16 @@ class Parser:
 
                 elif Parser._is_token_type(self._current_token, "EOF"):
                     # Inform parser and repl to wait for remaining user input
-                    raise NotFinishError("Unexpected EOF while parsing list.")  # Tell `repl()` to keep waiting for input
+                    raise NotFinishError(
+                        "Unexpected EOF while parsing list.")  # Tell `repl()` to keep waiting for input
 
-                cdr = self._parse_s_exp()   # Parse the cdr part
+                cdr = self._parse_s_exp()  # Parse the cdr part
 
                 token = self._consume_token()
                 if Parser._is_token_type(token, "EOF"):
                     # Inform parser and repl to wait for remaining user input
-                    raise NotFinishError("Unexpected EOF while parsing list.")  # Tell `repl()` to keep waiting for input
+                    raise NotFinishError(
+                        "Unexpected EOF while parsing list.")  # Tell `repl()` to keep waiting for input
 
                 elif not Parser._is_token_type(token, "RIGHT_PAREN"):
                     line, pos = self._relative_token_position(token)
@@ -227,7 +231,7 @@ class Parser:
 
                     raise UnexpectedTokenError(line=line, column=pos, value=value)
 
-                return Parser._convert_to_cons(elements, cdr) # Convert to unified format
+                return Parser._convert_to_cons(elements, cdr)  # Convert to unified format
 
             elements.append(self._parse_s_exp())
 
@@ -294,7 +298,7 @@ class Parser:
         Returns:
             int: Character index of the last token in source string.
         """
-        return  self._last_token_end_pos
+        return self._last_token_end_pos
 
     def parse(self) -> ASTNode:
         """

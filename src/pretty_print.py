@@ -1,5 +1,6 @@
 from src.ast_nodes import *
 
+
 def pretty_print(node, indent: int = 0):
     """
     Pretty-print the Scheme AST with strict indentation formatting.
@@ -33,7 +34,8 @@ def pretty_print(node, indent: int = 0):
             current = current.cdr
 
         # Handle proper list: (a b c)
-        if isinstance(current, AtomNode) and current.type == "BOOLEAN" and current.value == "nil":    # ( ssp . nil ) === ( sp1 sp2 sp3 ... spn )
+        if isinstance(current,
+                      AtomNode) and current.type == "BOOLEAN" and current.value == "nil":  # ( ssp . nil ) === ( sp1 sp2 sp3 ... spn )
             result = f"( {pretty_print(elements[0], indent + 1)}"
 
             for elem in elements[1:]:

@@ -1,5 +1,6 @@
 from src.errors import NonListError
 
+
 class ASTNode:
     def __eq__(self, other):
         return isinstance(other, self.__class__) and vars(self) == vars(other)
@@ -10,7 +11,7 @@ class ASTNode:
 
 class AtomNode(ASTNode):
     def __init__(self, type_, value):
-        self.type = type_   # "INT", "FLOAT", "SYMBOL", "BOOLEAN"
+        self.type = type_  # "INT", "FLOAT", "SYMBOL", "BOOLEAN"
         self.value = value
 
     def __repr__(self):

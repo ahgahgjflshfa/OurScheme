@@ -1,6 +1,6 @@
 from src.ast_nodes import *
-from src.errors import IncorrectArgumentNumber, IncorrectArgumentType, DefineFormatError
 from src.environment import Environment
+from src.errors import IncorrectArgumentNumber, DefineFormatError
 
 
 class SpecialForm:
@@ -27,8 +27,8 @@ class SpecialForm:
 def special(name, min_args=None, max_args=None):
     def decorator(func):
         return SpecialForm(
-            name = name,
-            func = func,
+            name=name,
+            func=func,
             min_args=min_args,
             max_args=max_args
         )
