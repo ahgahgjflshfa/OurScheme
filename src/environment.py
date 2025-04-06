@@ -2,8 +2,8 @@ from src.errors import DefineFormatError, UnboundSymbolError
 
 
 class Environment:
-    def __init__(self, builtins_ = None):
-        self.builtins = builtins_ or {}
+    def __init__(self, builtins = None):
+        self.builtins = builtins or {}
         self.user_define = {}
 
     def define(self, symbol: str, value):
@@ -26,5 +26,5 @@ class Environment:
         else:
             raise UnboundSymbolError(symbol)
 
-    def reset_user_definitions(self):
+    def clear(self):
         self.user_define.clear()

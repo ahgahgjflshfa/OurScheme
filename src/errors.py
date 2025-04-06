@@ -1,16 +1,3 @@
-class OurSchemeError(Exception):
-    def __init__(self, err_type_: str):
-        self.err_type = err_type_
-        super().__init__(f"ERROR ({err_type_})")
-
-
-class NoClosingQuoteError(Exception):
-    def __init__(self, line_: int, column_: int):
-        self.line = line_
-        self.column = column_
-        super().__init__(f"ERROR (no closing quote) : END-OF-LINE encountered at Line {self.line} Column {self.column}")
-
-
 class NotFinishError(Exception):
     """讓parser等待多行輸入"""
     def __init__(self, msg_: str="S expression not complete"):
@@ -31,13 +18,25 @@ class EmptyInputError(Exception):
         return self.msg
 
 
-class UnexpectedTokenError(Exception):
-    def __init__(self, msg_: str="Unexpected Token"):
-        self.msg = msg_
-        super().__init__(msg_)
+class OurSchemeError(Exception):
+    def __init__(self, err_type_: str):
+        self.err_type = err_type_
+        super().__init__(f"ERROR ({err_type_})")
 
-    def __str__(self):
-        return self.msg
+
+class NoClosingQuoteError(OurSchemeError):
+    def __init__(self, line_: int, column_: int):
+        self.line = line_
+        self.column = column_
+        super().__init__("no closing quote")
+
+
+class UnexpectedTokenError(OurSchemeError):
+    def __init__(self, line, column, value):
+        self.line = line
+        self.column = column
+        self.value = value
+        super().__init__("unexpected token")
 
 
 class DefineFormatError(OurSchemeError):

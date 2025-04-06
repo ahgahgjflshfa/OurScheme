@@ -811,14 +811,14 @@ class Environment:
         self.user_define.clear()
 
 
-def prim_cons(args: list[ASTNode]):
+def prim_cons(args: list[ASTNode]) -> ConsNode:
     if len(args) != 2:
         raise IncorrectArgumentNumber("cons")
 
     return ConsNode(args[0], args[1])
 
 
-def prim_list(args: list[ASTNode]):
+def prim_list(args: list[ASTNode]) -> ASTNode:
     if len(args) < 0:
         raise IncorrectArgumentNumber("list")
 

@@ -3,20 +3,25 @@ from src.ast_nodes import *
 from src.lexer import Lexer
 from src.parser import Parser
 from src.pretty_print import pretty_print
-from src.evaluator import evaluate
+from src.evaluator import Evaluator
 
 
 def repl():
     lexer = Lexer()
+    evaluator = Evaluator()
     print("Welcome to OurScheme!")
+
+    empty_line_encountered = False
 
     partial_input = ""  # for multiline input
     new_s_exp_start = 0
     while True:
         try:
+            if not empty_line_encountered:
+                print("\n>", end=" ")
+
             new_input = input()  # read new input
             if new_input.lower() == "(exit)":
-                print("\n> ")
                 break
 
             partial_input += new_input + "\n"  # add new line input
@@ -38,12 +43,12 @@ def repl():
                     if isinstance(result, ConsNode):
                         if ((isinstance(result.car, AtomNode) and result.car.type == "SYMBOL" and result.car.value == "exit") and
                                 (isinstance(result.cdr, AtomNode) and result.cdr.type == "BOOLEAN" and result.cdr.value == "nil")):
-                            print("\n> \nThanks for using OurScheme!")
+                            print("\nThanks for using OurScheme!")
                             return
 
                     # Eval
                     try:
-                        eval_result = evaluate(result)
+                        eval_result = evaluator.evaluate(result)
 
                         # 特判 define，輸出 "x defined"
                         if (isinstance(result, ConsNode) and
@@ -52,48 +57,61 @@ def repl():
                                 isinstance(result.cdr.car, AtomNode)):
 
                             var_name = result.cdr.car.value
-                            print(f"\n> {var_name} defined")
+                            print(f"{var_name} defined")
 
                         else:
-                            print(f"\n> {pretty_print(eval_result).lstrip('\n')}")
+                            print(f"{pretty_print(eval_result).lstrip('\n')}")
 
                     except DefineFormatError as e:
-                        print(f"\n> {str(e)} : {pretty_print(result)}")
+                        print(f"{e} : {pretty_print(result)}")
 
                     except UnboundSymbolError as e:
-                        print(f"\n> {str(e)} : {e.symbol}")
+                        print(f"{e} : {e.symbol}")
 
                     except IncorrectArgumentType as e:
-                        print(f"\n> {str(e)} : {pretty_print(e.arg)}")
+                        print(f"{e} : {pretty_print(e.arg)}")
 
                     except NotCallableError as e:
-                        print(f"\n> {str(e)} : {pretty_print(e.operator)}")
+                        print(f"{e} : {pretty_print(e.operator)}")
 
                     except NonListError as e:
-                        print(f"\n> {str(e)} : {pretty_print(e.ast)}")
+                        print(f"{e} : {pretty_print(e.ast)}")
 
                     except DivisionByZeroError as e:
-                        print(f"\n> {str(e)} : /")
+                        print(f"{e} : /")
 
                     except IncorrectArgumentNumber as e:
-                        print(f"\n> {str(e)} : {e.operator}")
+                        print(f"{e} : {e.operator}")
 
                 partial_input = ""  # after parsing, clear input
                 new_s_exp_start = 0
 
             except NotFinishError:
-                pass    # wait for user input, so do nothing
+                empty_line_encountered = True   # wait for user input, so do nothing
+                continue
 
-            except (UnexpectedTokenError, NoClosingQuoteError) as e:
-                print(f"\n> {e}")
+            except NoClosingQuoteError as e:
+                print(f"{e} : END-OF-LINE encountered at Line {e.line} Column {e.column}")
+                partial_input = ""
+                new_s_exp_start = 0
+
+            except UnexpectedTokenError as e:
+                if e.value in (".", ")"):
+                    print(f"{e} : atom or '(' expected when token at Line {e.line} Column {e.column} is >>{e.value}<<")
+                else:
+                    print(f"{e} : ')' expected when token at Line {e.line} Column {e.column} is >>{e.value}<<")
+
                 partial_input = ""
                 new_s_exp_start = 0
 
         except EmptyInputError:
+            empty_line_encountered = True
             continue
 
         except EOFError:
-            print("\n> ERROR (no more input) : END-OF-FILE encountered")
+            print("ERROR (no more input) : END-OF-FILE encountered")
             break
+
+        empty_line_encountered = False
 
     print("Thanks for using OurScheme!", end="")
