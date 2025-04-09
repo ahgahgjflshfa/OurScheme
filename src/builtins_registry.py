@@ -38,29 +38,29 @@ built_in_funcs = {
 
     "not": prim_not,
     "and": special_and,  # special form
-    "or": None,  # special form
+    "or": special_or,  # special form
 
-    ">": None,
-    ">=": None,
-    "<": None,
-    "<=": None,
-    "=": None,
+    ">": prim_greater,
+    ">=": prim_greater_equal,
+    "<": prim_smaller,
+    "<=": prim_smaller_equal,
+    "=": prim_equal,
 
-    "string-append": None,
-    "string>?": None,
-    "string<?": None,
-    "string=?": None,
+    "string-append": prim_string_append,
+    "string>?": prim_string_greater,
+    "string<?": prim_string_smaller,
+    "string=?": prim_string_equal,
 
     # 7. Equivalence tester
     "eqv?": prim_is_eqv,
     "equal?": prim_is_equal,
 
     # 8. Sequencing and functional composition
-    "begin": None,  # special form
+    "begin": special_begin,  # special form
 
     # 9. Conditionals
-    "if": None,  # special form
-    "cond": None,  # special form
+    "if": special_if,  # special form
+    "cond": special_cond,  # special form
 
     # 10. Clean Environment
     "clean-environment": prim_clean_env,

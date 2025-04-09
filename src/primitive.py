@@ -1,35 +1,64 @@
 from src.ast_nodes import *
 from src.environment import Environment
-from src.errors import IncorrectArgumentType, DivisionByZeroError, IncorrectArgumentNumber
+from src.errors import IncorrectArgumentType, DivisionByZeroError
+from src.base.callable import CallableEntity
 
 
-class PrimitiveFunction:
-    def __init__(self, name, func, min_args=None, max_args=None):
-        self.name = name
-        self.func = func
-        self.min_args = min_args
-        self.max_args = max_args
+class PrimitiveFunction(CallableEntity):
+    def __init__(self, name, func, min_args=None, max_args=None, arg_types=None):
+        super().__init__(name, func, min_args, max_args)
+        self.arg_types = arg_types
 
-    def __call__(self, args, env):
-        if self.min_args is not None and len(args) < self.min_args:
-            raise IncorrectArgumentNumber(self.name)
+    def check_arg_types(self, args: list[ASTNode]):
+        if not self.arg_types:
+            return
 
-        if self.max_args is not None and len(args) > self.max_args:
-            raise IncorrectArgumentNumber(self.name)
+        for i, arg in enumerate(args):
+            # 如果 arg_types 是單一類型集合，套用到所有參數
+            if isinstance(self.arg_types, (tuple, set)):
+                valid_types = self.arg_types
+            elif isinstance(self.arg_types, list):
+                if i >= len(self.arg_types):
+                    break  # 超過定義不檢查
 
+                expected_type = self.arg_types[i]
+                valid_types = (expected_type,)
+
+            # 開始比對類型
+            if not self._is_type_valid(arg, valid_types):
+                raise IncorrectArgumentType(self.name, arg)
+
+    def _is_type_valid(self, arg, expected_types):
+        # atom 型別對應
+        if isinstance(expected_types, str):
+            expected_types = (expected_types,)
+
+        for t in expected_types:
+            if t == "any":
+                return True
+            elif t == "pair":
+                if isinstance(arg, ConsNode):
+                    return True
+            elif isinstance(arg, AtomNode) and arg.type == t:
+                return True
+        return False
+
+    def __call__(self, args: list[ASTNode], env: Environment):
+        self.check_arg_types(args)
         return self.func(args, env)
 
     def __repr__(self):
         return f"<Primitive Function: {self.name}>"
 
 
-def primitive(name=None, min_args=None, max_args=None):
+def primitive(name=None, min_args=None, max_args=None, arg_types=None):
     def decorator(func):
         return PrimitiveFunction(
             name=name or func.__name__,
             func=func,
             min_args=min_args,
-            max_args=max_args
+            max_args=max_args,
+            arg_types=arg_types,
         )
 
     return decorator
@@ -53,21 +82,15 @@ def prim_list(args: list[ASTNode], _):
     return cons_node
 
 
-@primitive(name="car", min_args=1, max_args=1)
+@primitive(name="car", min_args=1, max_args=1, arg_types=["pair"])
 def prim_car(args: list[ASTNode], _) -> ASTNode:
     arg = args[0]
-    if not isinstance(arg, ConsNode):
-        raise IncorrectArgumentType("car", arg)
-
     return arg.car
 
 
-@primitive(name="cdr", min_args=1, max_args=1)
+@primitive(name="cdr", min_args=1, max_args=1, arg_types=["pair"])
 def prim_cdr(args: list[ASTNode], _) -> ASTNode:
     arg = args[0]
-    if not isinstance(arg, ConsNode):
-        raise IncorrectArgumentType("cdr", arg)
-
     return arg.cdr
 
 
@@ -79,7 +102,7 @@ def prim_is_atom(args: list[ASTNode], _) -> AtomNode:
 
 @primitive(name="pair?", min_args=1, max_args=1)
 def prim_is_pair(args: list[ASTNode], _) -> AtomNode:
-    return AtomNode("BOOLEAN", "#t" if isinstance(args, ConsNode) else "nil")
+    return AtomNode("BOOLEAN", "#t" if isinstance(args[0], ConsNode) else "nil")
 
 
 @primitive(name="pair?", min_args=1, max_args=1)
@@ -141,7 +164,7 @@ def prim_is_symbol(args: list[ASTNode], _) -> AtomNode:
     return AtomNode("BOOLEAN", "#t" if isinstance(arg, AtomNode) and arg.type == "SYMBOL" else "nil")
 
 
-@primitive(name="+", min_args=2)
+@primitive(name="+", min_args=2, arg_types=("INT", "FLOAT"))
 def prim_add(args: list[ASTNode], _) -> AtomNode:
     """
     Performs addition.
@@ -151,18 +174,7 @@ def prim_add(args: list[ASTNode], _) -> AtomNode:
 
     Returns:
         An atom node containing the result of addition.
-
-    Raises:
-        ArgumentNumberIncorrect: If number of argument is less than two.
     """
-    not_number = next(
-        (x for x in args if not (isinstance(x, AtomNode) and x.type in ("INT", "FLOAT"))),
-        None
-    )
-
-    if not_number:
-        raise IncorrectArgumentType("+", not_number)
-
     total = 0
     have_float = False
     for arg in args:
@@ -172,7 +184,7 @@ def prim_add(args: list[ASTNode], _) -> AtomNode:
     return AtomNode("FLOAT", total) if have_float else AtomNode("INT", total)
 
 
-@primitive(name="-", min_args=2)
+@primitive(name="-", min_args=2, arg_types=("INT", "FLOAT"))
 def prim_sub(args: list[ASTNode], _) -> AtomNode:
     """
     Performs subtraction.
@@ -182,20 +194,9 @@ def prim_sub(args: list[ASTNode], _) -> AtomNode:
 
     Returns:
         An atom node containing the result of subtraction.
-
-    Raises:
-        ArgumentNumberIncorrect: If number of argument is less than two.
     """
-    not_number = next(
-        (x for x in args if not (isinstance(x, AtomNode) and x.type in ("INT", "FLOAT"))),
-        None
-    )
-
-    if not_number:
-        raise IncorrectArgumentType("-", not_number)
-
     total = args[0].value
-    have_float = False
+    have_float = False if args[0].type != "FLOAT" else True
     for arg in args[1:]:
         if arg.type == "FLOAT": have_float = True
         total -= arg.value
@@ -203,7 +204,7 @@ def prim_sub(args: list[ASTNode], _) -> AtomNode:
     return AtomNode("FLOAT", total) if have_float else AtomNode("INT", total)
 
 
-@primitive(name="*", min_args=2)
+@primitive(name="*", min_args=2, arg_types=("INT", "FLOAT"))
 def prim_multiply(args: list[ASTNode], _) -> AtomNode:
     """
     Performs multiplication.
@@ -213,18 +214,7 @@ def prim_multiply(args: list[ASTNode], _) -> AtomNode:
 
     Returns:
         A atom node containing the result of multiplication.
-
-    Raises:
-        ArgumentNumberIncorrect: If number of argument is less than two.
     """
-    not_number = next(
-        (x for x in args if not (isinstance(x, AtomNode) and x.type in ("INT", "FLOAT"))),
-        None
-    )
-
-    if not_number:
-        raise IncorrectArgumentType("*", not_number)
-
     total = 1
     have_float = False
     for arg in args:
@@ -235,7 +225,7 @@ def prim_multiply(args: list[ASTNode], _) -> AtomNode:
     return AtomNode("FLOAT", total) if have_float else AtomNode("INT", total)
 
 
-@primitive(name="/", min_args=2)
+@primitive(name="/", min_args=2, arg_types=("INT", "FLOAT"))
 def prim_divide(args: list[ASTNode], _) -> AtomNode:
     """
     Performs division.
@@ -247,20 +237,10 @@ def prim_divide(args: list[ASTNode], _) -> AtomNode:
         A atom node containing the result of division.
 
     Raises:
-        ArgumentNumberIncorrect: If number of argument is less than two.
-
         DivisionByZeroError: If divisor is zero.
     """
-    not_number = next(
-        (x for x in args if not (isinstance(x, AtomNode) and x.type in ("INT", "FLOAT"))),
-        None
-    )
-
-    if not_number:
-        raise IncorrectArgumentType("/", not_number)
-
     total = args[0].value
-    have_float = False
+    have_float = False if args[0].type != "FLOAT" else True
     for arg in args[1:]:
         if arg.type == "FLOAT": have_float = True
 
@@ -269,7 +249,7 @@ def prim_divide(args: list[ASTNode], _) -> AtomNode:
 
         total /= arg.value
 
-    return AtomNode("FLOAT", total) if have_float or not total.is_integer() else AtomNode("INT", int(total))
+    return AtomNode("FLOAT", total) if have_float else AtomNode("INT", int(total))
 
 
 @primitive(name="not", min_args=1, max_args=1)
@@ -282,40 +262,86 @@ def prim_not(args: list[ASTNode], _) -> ASTNode:
         return AtomNode("BOOLEAN", "nil")
 
 
+@primitive(name=">", min_args=2, arg_types=("INT", "FLOAT"))
 def prim_greater(args: list[ASTNode], env: Environment) -> ASTNode:
-    pass
+    for i in range(len(args) - 1):
+        if args[i].value <= args[i + 1].value:
+            return AtomNode("BOOLEAN", "nil")
+
+    return AtomNode("BOOLEAN", "#t")
 
 
+@primitive(name=">=", min_args=2, arg_types=("INT", "FLOAT"))
 def prim_greater_equal(args: list[ASTNode], env: Environment) -> ASTNode:
-    pass
+    for i in range(len(args) - 1):
+        if args[i].value < args[i + 1].value:
+            return AtomNode("BOOLEAN", "nil")
+
+    return AtomNode("BOOLEAN", "#t")
 
 
+@primitive(name="<", min_args=2, arg_types=("INT", "FLOAT"))
 def prim_smaller(args: list[ASTNode], env: Environment) -> ASTNode:
-    pass
+    for i in range(len(args) - 1):
+        if args[i].value >= args[i + 1].value:
+            return AtomNode("BOOLEAN", "nil")
+
+    return AtomNode("BOOLEAN", "#t")
 
 
+@primitive(name="<=", min_args=2, arg_types=("INT", "FLOAT"))
 def prim_smaller_equal(args: list[ASTNode], env: Environment) -> ASTNode:
-    pass
+    for i in range(len(args) - 1):
+        if args[i].value > args[i + 1].value:
+            return AtomNode("BOOLEAN", "nil")
+
+    return AtomNode("BOOLEAN", "#t")
 
 
+@primitive(name="=", min_args=2, arg_types=("INT", "FLOAT"))
 def prim_equal(args: list[ASTNode], env: Environment) -> ASTNode:
-    pass
+    for i in range(len(args) - 1):
+        if args[i].value != args[i + 1].value:
+            return AtomNode("BOOLEAN", "nil")
+
+    return AtomNode("BOOLEAN", "#t")
 
 
+@primitive(name="string-append", min_args=2, arg_types=("STRING",))
 def prim_string_append(args: list[ASTNode], env: Environment) -> ASTNode:
-    pass
+    new_string = ""
+
+    for arg in args:
+        new_string += arg.value
+
+    return AtomNode("STRING", new_string)
 
 
+@primitive(name="string>?", min_args=2, arg_types=("STRING",))
 def prim_string_greater(args: list[ASTNode], env: Environment) -> ASTNode:
-    pass
+    for i in range(len(args) - 1):
+        if args[i].value <= args[i + 1].value:
+            return AtomNode("BOOLEAN", "nil")
+
+    return AtomNode("BOOLEAN", "#t")
 
 
+@primitive(name="string<?", min_args=2, arg_types=("STRING",))
 def prim_string_smaller(args: list[ASTNode], env: Environment) -> ASTNode:
-    pass
+    for i in range(len(args) - 1):
+        if args[i].value >= args[i + 1].value:
+            return AtomNode("BOOLEAN", "nil")
+
+    return AtomNode("BOOLEAN", "#t")
 
 
+@primitive(name="string=?", min_args=2, arg_types=("STRING",))
 def prim_string_equal(args: list[ASTNode], env: Environment) -> ASTNode:
-    pass
+    for i in range(len(args) - 1):
+        if args[i].value != args[i + 1].value:
+            return AtomNode("BOOLEAN", "nil")
+
+    return AtomNode("BOOLEAN", "#t")
 
 
 @primitive(name="eqv?", min_args=2, max_args=2)
@@ -348,7 +374,7 @@ def prim_clean_env(args: list[ASTNode], env: Environment) -> None:
 
 
 __all__ = [
-    "PrimitiveFunction",
+    "CallableEntity",
     "prim_cons",
     "prim_list",
     "prim_car",
@@ -371,6 +397,7 @@ __all__ = [
     "prim_greater",
     "prim_greater_equal",
     "prim_smaller",
+    "prim_smaller_equal",
     "prim_equal",
     "prim_string_append",
     "prim_string_greater",

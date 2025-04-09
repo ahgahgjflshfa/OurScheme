@@ -61,10 +61,13 @@ def repl():
                             var_name = result.cdr.car.value
                             print(f"{var_name} defined")
 
+                        elif eval_result is None:
+                            print(f"ERROR (no return value) : {pretty_print(result)}")
+
                         else:
                             print(f"{pretty_print(eval_result).lstrip('\n')}")
 
-                    except DefineFormatError as e:
+                    except (DefineFormatError, CondFormatError) as e:
                         print(f"{e} : {pretty_print(result)}")
 
                     except UnboundSymbolError as e:
@@ -84,6 +87,9 @@ def repl():
 
                     except IncorrectArgumentNumber as e:
                         print(f"{e} : {e.operator}")
+
+                    except (DefineLevelError, CleanEnvLevelError) as e:
+                        print(f"{e}")
 
                 partial_input = ""  # after parsing, clear input
                 new_s_exp_start = 0

@@ -1052,7 +1052,7 @@ ERROR (COND format) : ( cond
   )
 )
 
-> (cond (#f (3 4)) ("Hi" (cons 5) 6))
+> (cond (#f (3 4)) ("Hi" (cons 5) 6))       <- TODO: PROBLEM
 ERROR (incorrect number of arguments) : cons
 
 > (cond (#f (3 4)) ("Hi" (cons 5 6) 7))

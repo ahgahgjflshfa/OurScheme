@@ -44,6 +44,11 @@ class UnexpectedTokenError(OurSchemeError):
 class DefineFormatError(OurSchemeError):
     def __init__(self):
         super().__init__(f"DEFINE format")
+        
+
+class CondFormatError(OurSchemeError):
+    def __init__(self):
+        super().__init__(f"COND format")
 
 
 class UnboundSymbolError(OurSchemeError):
@@ -82,6 +87,22 @@ class IncorrectArgumentNumber(OurSchemeError):
         super().__init__(f"incorrect number of arguments")
 
 
+class DefineLevelError(OurSchemeError):
+    def __init__(self):
+        super().__init__(f"level of DEFINE")
+
+
+class CleanEnvLevelError(OurSchemeError):
+    def __init__(self):
+        super().__init__(f"level of CLEAN-ENVIRONMENT")
+
+
+class NoReturnValue(OurSchemeError):
+    def __init__(self, ast):
+        self.ast = ast
+        super().__init__(f"no return value")
+
+
 __all__ = [
     "OurSchemeError",
     "NoClosingQuoteError",
@@ -89,10 +110,14 @@ __all__ = [
     "EmptyInputError",
     "UnexpectedTokenError",
     "DefineFormatError",
+    "CondFormatError",
     "UnboundSymbolError",
     "IncorrectArgumentType",
     "NotCallableError",
     "NonListError",
     "DivisionByZeroError",
-    "IncorrectArgumentNumber"
+    "IncorrectArgumentNumber",
+    "DefineLevelError",
+    "CleanEnvLevelError",
+    "NoReturnValue"
 ]
