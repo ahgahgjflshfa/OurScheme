@@ -1,3 +1,6 @@
+# Require numpy
+# linux & windows(cmd): python april-9.py < input.txt > output.txt
+
 import numpy as np
 
 
@@ -854,7 +857,7 @@ class CallableEntity:
         raise NotImplementedError(f"{self.__class__.__name__} must override __call__()")
 
     def __repr__(self, *args, **kwargs):
-        raise NotImplementedError(f"{self.__class__.__name__} must override __repr__()")
+        return f"#<procedure {self.name}>"
 
 
 class PrimitiveFunction(CallableEntity):
@@ -899,9 +902,6 @@ class PrimitiveFunction(CallableEntity):
     def __call__(self, args: list[ASTNode], env: Environment):
         self.check_arg_types(args)
         return self.func(args, env)
-
-    def __repr__(self):
-        return f"<Primitive Function: {self.name}>"
 
 
 def primitive(name=None, min_args=None, max_args=None, arg_types=None):
@@ -950,7 +950,7 @@ def prim_cdr(args: list[ASTNode], _) -> ASTNode:
 @primitive(name="atom?", min_args=1, max_args=1)
 def prim_is_atom(args: list[ASTNode], _) -> AtomNode:
     arg = args[0]
-    return AtomNode("BOOLEAN", "#t" if isinstance(arg, AtomNode) else "nil")
+    return AtomNode("BOOLEAN", "#t" if not isinstance(arg, ConsNode) and not isinstance(arg, QuoteNode) else "nil")
 
 
 @primitive(name="pair?", min_args=1, max_args=1)
@@ -1222,8 +1222,9 @@ def prim_is_equal(args: list[ASTNode], env: Environment) -> ASTNode:
 
 
 @primitive(name="clean-environment", min_args=0, max_args=0)
-def prim_clean_env(args: list[ASTNode], env: Environment) -> None:
+def prim_clean_env(args: list[ASTNode], env: Environment) -> ASTNode:
     env.clear()
+    return AtomNode("SYMBOL", "environment cleaned")
 
 
 class SpecialForm(CallableEntity):
@@ -1232,9 +1233,6 @@ class SpecialForm(CallableEntity):
 
     def __call__(self, args, env, evaluator):
         return self.func(args, env, evaluator)
-
-    def __repr__(self):
-        return f"<Special Function: {self.name}>"
 
 
 def special(name, min_args=None, max_args=None):
@@ -1317,28 +1315,35 @@ def special_if(args: list[ASTNode], env: Environment, evaluator: "Evaluator") ->
 
 @special(name="cond", min_args=1)
 def special_cond(args: list[ASTNode], env: Environment, evaluator: "Evaluator") -> ASTNode | None:
-    def extract_branch(cons: ASTNode) -> tuple[ASTNode, ASTNode]:
+    def extract_branch(cons: ASTNode) -> tuple[ASTNode, list[ASTNode]]:
         branch = []
         while isinstance(cons, ConsNode):
             branch.append(cons.car)
             cons = cons.cdr
-        if cons != AtomNode("BOOLEAN", "nil") or len(branch) != 2:
+        if cons != AtomNode("BOOLEAN", "nil"):
             raise CondFormatError()
-        return branch[0], branch[1]
+
+        return branch[0], branch[1:]
 
     for clause in args[:-1]:
         if not isinstance(clause, ConsNode):
             raise CondFormatError()
 
-        test, expr = extract_branch(clause)
+        test, exprs = extract_branch(clause)
 
         if evaluator.evaluate(test) != AtomNode("BOOLEAN", "nil"):
-            return evaluator.evaluate(expr, env, "inner")
+            for expr in exprs[:-1]:
+                evaluator.evaluate(expr, env, "inner")
 
-    test, expr = extract_branch(args[-1])
+            return evaluator.evaluate(exprs[-1], env, "inner")
+
+    test, exprs = extract_branch(args[-1])
     if (test == AtomNode("SYMBOL", "else") or
             evaluator.evaluate(test) != AtomNode("BOOLEAN", "nil")):
-        return evaluator.evaluate(expr, env, "inner")
+        for expr in exprs[:-1]:
+            evaluator.evaluate(expr, env, "inner")
+
+        return evaluator.evaluate(exprs[-1], env, "inner")
 
 
 built_in_funcs = {

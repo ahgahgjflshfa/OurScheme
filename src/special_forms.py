@@ -11,9 +11,6 @@ class SpecialForm(CallableEntity):
     def __call__(self, args, env, evaluator):
         return self.func(args, env, evaluator)
 
-    def __repr__(self):
-        return f"<Special Function: {self.name}>"
-
 
 def special(name, min_args=None, max_args=None):
     def decorator(func):
@@ -95,28 +92,35 @@ def special_if(args: list[ASTNode], env: Environment, evaluator: "Evaluator") ->
 
 @special(name="cond", min_args=1)
 def special_cond(args: list[ASTNode], env: Environment, evaluator: "Evaluator") -> ASTNode | None:
-    def extract_branch(cons: ASTNode) -> tuple[ASTNode, ASTNode]:
+    def extract_branch(cons: ASTNode) -> tuple[ASTNode, list[ASTNode]]:
         branch = []
         while isinstance(cons, ConsNode):
             branch.append(cons.car)
             cons = cons.cdr
-        if cons != AtomNode("BOOLEAN", "nil") or len(branch) != 2:
+        if cons != AtomNode("BOOLEAN", "nil"):
             raise CondFormatError()
-        return branch[0], branch[1]
+
+        return branch[0], branch[1:]
 
     for clause in args[:-1]:
         if not isinstance(clause, ConsNode):
             raise CondFormatError()
 
-        test, expr = extract_branch(clause)
+        test, exprs = extract_branch(clause)
 
         if evaluator.evaluate(test) != AtomNode("BOOLEAN", "nil"):
-            return evaluator.evaluate(expr, env, "inner")
+            for expr in exprs[:-1]:
+                evaluator.evaluate(expr, env, "inner")
 
-    test, expr = extract_branch(args[-1])
+            return evaluator.evaluate(exprs[-1], env, "inner")
+
+    test, exprs = extract_branch(args[-1])
     if (test == AtomNode("SYMBOL", "else") or
             evaluator.evaluate(test) != AtomNode("BOOLEAN", "nil")):
-        return evaluator.evaluate(expr, env, "inner")
+        for expr in exprs[:-1]:
+            evaluator.evaluate(expr, env, "inner")
+
+        return evaluator.evaluate(exprs[-1], env, "inner")
 
 
 __all__ = [

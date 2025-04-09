@@ -47,9 +47,6 @@ class PrimitiveFunction(CallableEntity):
         self.check_arg_types(args)
         return self.func(args, env)
 
-    def __repr__(self):
-        return f"<Primitive Function: {self.name}>"
-
 
 def primitive(name=None, min_args=None, max_args=None, arg_types=None):
     def decorator(func):
@@ -97,7 +94,7 @@ def prim_cdr(args: list[ASTNode], _) -> ASTNode:
 @primitive(name="atom?", min_args=1, max_args=1)
 def prim_is_atom(args: list[ASTNode], _) -> AtomNode:
     arg = args[0]
-    return AtomNode("BOOLEAN", "#t" if isinstance(arg, AtomNode) else "nil")
+    return AtomNode("BOOLEAN", "#t" if not isinstance(arg, ConsNode) and not isinstance(arg, QuoteNode) else "nil")
 
 
 @primitive(name="pair?", min_args=1, max_args=1)
@@ -369,8 +366,9 @@ def prim_is_equal(args: list[ASTNode], env: Environment) -> ASTNode:
 
 
 @primitive(name="clean-environment", min_args=0, max_args=0)
-def prim_clean_env(args: list[ASTNode], env: Environment) -> None:
+def prim_clean_env(args: list[ASTNode], env: Environment) -> ASTNode:
     env.clear()
+    return AtomNode("SYMBOL", "environment cleaned")
 
 
 __all__ = [

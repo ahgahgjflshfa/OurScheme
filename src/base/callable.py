@@ -19,4 +19,4 @@ class CallableEntity:
         raise NotImplementedError(f"{self.__class__.__name__} must override __call__()")
 
     def __repr__(self, *args, **kwargs):
-        raise NotImplementedError(f"{self.__class__.__name__} must override __repr__()")
+        return f"#<procedure {self.name}>"
