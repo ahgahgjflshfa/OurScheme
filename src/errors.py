@@ -20,6 +20,10 @@ class EmptyInputError(Exception):
         return self.msg
 
 
+class SchemeExitException(Exception):
+    pass
+
+
 class OurSchemeError(Exception):
     def __init__(self, err_type_: str):
         self.err_type = err_type_
@@ -34,7 +38,8 @@ class NoClosingQuoteError(OurSchemeError):
 
 
 class UnexpectedTokenError(OurSchemeError):
-    def __init__(self, line, column, value):
+    def __init__(self, type_, line, column, value):
+        self.type = type_
         self.line = line
         self.column = column
         self.value = value
@@ -87,14 +92,19 @@ class IncorrectArgumentNumber(OurSchemeError):
         super().__init__(f"incorrect number of arguments")
 
 
-class DefineLevelError(OurSchemeError):
+class LevelDefineError(OurSchemeError):
     def __init__(self):
         super().__init__(f"level of DEFINE")
 
 
-class CleanEnvLevelError(OurSchemeError):
+class LevelCleanEnvError(OurSchemeError):
     def __init__(self):
         super().__init__(f"level of CLEAN-ENVIRONMENT")
+
+
+class LevelExitError(OurSchemeError):
+    def __init__(self):
+        super().__init__(f"level of EXIT")
 
 
 class NoReturnValue(OurSchemeError):
@@ -117,7 +127,8 @@ __all__ = [
     "NonListError",
     "DivisionByZeroError",
     "IncorrectArgumentNumber",
-    "DefineLevelError",
-    "CleanEnvLevelError",
+    "LevelDefineError",
+    "LevelCleanEnvError",
+    "LevelExitError",
     "NoReturnValue"
 ]

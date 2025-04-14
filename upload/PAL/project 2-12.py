@@ -44,7 +44,8 @@ class NoClosingQuoteError(OurSchemeError):
 
 
 class UnexpectedTokenError(OurSchemeError):
-    def __init__(self, line, column, value):
+    def __init__(self, type_, line, column, value):
+        self.type = type_
         self.line = line
         self.column = column
         self.value = value
@@ -110,6 +111,12 @@ class LevelCleanEnvError(OurSchemeError):
 class LevelExitError(OurSchemeError):
     def __init__(self):
         super().__init__(f"level of EXIT")
+
+
+class NoReturnValue(OurSchemeError):
+    def __init__(self, ast):
+        self.ast = ast
+        super().__init__(f"no return value")
 
 
 class ASTNode:
@@ -666,13 +673,13 @@ class Parser:
             value = token.value
             line, pos = self._relative_token_position(token)
 
-            raise UnexpectedTokenError(line=line, column=pos, value=value)
+            raise UnexpectedTokenError(type_=1, line=line, column=pos, value=value)
 
         elif token.type == "RIGHT_PAREN":
             value = token.value
             line, pos = self._relative_token_position(token)
 
-            raise UnexpectedTokenError(line=line, column=pos, value=value)
+            raise UnexpectedTokenError(type_=1, line=line, column=pos, value=value)
 
     def _parse_list(self) -> ASTNode:
         """
@@ -700,7 +707,7 @@ class Parser:
                     line, pos = self._relative_token_position(self._current_token)
                     value = self._current_token.value
 
-                    raise UnexpectedTokenError(line=line, column=pos, value=value)
+                    raise UnexpectedTokenError(type_=1, line=line, column=pos, value=value)
 
                 self._consume_token()  # skip `.`
 
@@ -709,7 +716,7 @@ class Parser:
                     line, pos = self._relative_token_position(self._current_token)
                     value = self._current_token.value
 
-                    raise UnexpectedTokenError(line=line, column=pos, value=value)
+                    raise UnexpectedTokenError(type_=1, line=line, column=pos, value=value)
 
                 elif Parser._is_token_type(self._current_token, "EOF"):
                     # Inform parser and repl to wait for remaining user input
@@ -728,7 +735,7 @@ class Parser:
                     line, pos = self._relative_token_position(token)
                     value = token.value
 
-                    raise UnexpectedTokenError(line=line, column=pos, value=value)
+                    raise UnexpectedTokenError(type_=2, line=line, column=pos, value=value)
 
                 return Parser._convert_to_cons(elements, cdr)  # Convert to unified format
 
@@ -1463,11 +1470,16 @@ class Evaluator:
 
             func.check_arity(args)
 
-            if isinstance(func, SpecialForm):  # Special forms
-                return func(args, env, self)
+            if isinstance(func, SpecialForm):   # Special forms
+                eval_result = func(args, env, self)
             else:  # Primitive functions
                 evaluated_args = self.eval_list(args, env)
-                return func(evaluated_args, env)
+                eval_result = func(evaluated_args, env)
+
+            if eval_result is None:
+                raise NoReturnValue(ast)
+
+            return eval_result
 
     @staticmethod
     def extract_list(cons_node: ConsNode) -> list[ASTNode]:
@@ -1619,7 +1631,7 @@ def repl():
                     except NotCallableError as e:
                         print(f"{e} : {pretty_print(e.operator)}")
 
-                    except NonListError as e:
+                    except (NonListError, NoReturnValue) as e:
                         print(f"{e} : {pretty_print(e.ast)}")
 
                     except DivisionByZeroError as e:
@@ -1644,7 +1656,7 @@ def repl():
                 new_s_exp_start = 0
 
             except UnexpectedTokenError as e:
-                if e.value in (".", ")"):
+                if e.type == 1:
                     print(f"{e} : atom or '(' expected when token at Line {e.line} Column {e.column} is >>{e.value}<<")
                 else:
                     print(f"{e} : ')' expected when token at Line {e.line} Column {e.column} is >>{e.value}<<")

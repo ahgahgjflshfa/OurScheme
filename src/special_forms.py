@@ -1,6 +1,6 @@
 from src.ast_nodes import *
 from src.environment import Environment
-from src.errors import IncorrectArgumentNumber, DefineFormatError, CondFormatError
+from src.errors import DefineFormatError, CondFormatError
 from src.base.callable import CallableEntity
 
 
@@ -90,31 +90,40 @@ def special_if(args: list[ASTNode], env: Environment, evaluator: "Evaluator") ->
         return evaluator.evaluate(else_expr, env, "inner")
 
 
-@special(name="cond", min_args=1)
+@special(name="cond")
 def special_cond(args: list[ASTNode], env: Environment, evaluator: "Evaluator") -> ASTNode | None:
-    def extract_branch(cons: ASTNode) -> tuple[ASTNode, list[ASTNode]]:
+    def extract_clause(cons: ASTNode) -> tuple[ASTNode, list[ASTNode]]:
         branch = []
         while isinstance(cons, ConsNode):
             branch.append(cons.car)
             cons = cons.cdr
+
         if cons != AtomNode("BOOLEAN", "nil"):
+            raise CondFormatError()
+
+        if len(branch) < 2:
             raise CondFormatError()
 
         return branch[0], branch[1:]
 
-    for clause in args[:-1]:
-        if not isinstance(clause, ConsNode):
+    if len(args) < 1:
+        raise CondFormatError()
+
+    clauses = []
+    for arg in args:
+        if not isinstance(arg, ConsNode):
             raise CondFormatError()
 
-        test, exprs = extract_branch(clause)
+        clauses.append(extract_clause(arg))
 
+    for test, exprs in clauses[:-1]:
         if evaluator.evaluate(test) != AtomNode("BOOLEAN", "nil"):
             for expr in exprs[:-1]:
                 evaluator.evaluate(expr, env, "inner")
 
             return evaluator.evaluate(exprs[-1], env, "inner")
 
-    test, exprs = extract_branch(args[-1])
+    test, exprs = clauses[-1]
     if (test == AtomNode("SYMBOL", "else") or
             evaluator.evaluate(test) != AtomNode("BOOLEAN", "nil")):
         for expr in exprs[:-1]:

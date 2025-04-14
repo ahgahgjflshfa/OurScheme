@@ -64,4 +64,7 @@ built_in_funcs = {
 
     # 10. Clean Environment
     "clean-environment": prim_clean_env,
+
+    # 11. Exit Interpreter
+    "exit": prim_exit,
 }

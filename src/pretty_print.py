@@ -63,4 +63,4 @@ def pretty_print(node, indent: int = 0):
         result += f"\n{indent_str})"
         return result
 
-    return f"{indent_str}{node}"
+    return f"{node}"

@@ -1,6 +1,6 @@
 from src.ast_nodes import *
 from src.environment import Environment
-from src.errors import IncorrectArgumentType, DivisionByZeroError
+from src.errors import IncorrectArgumentType, DivisionByZeroError, SchemeExitException
 from src.base.callable import CallableEntity
 
 
@@ -62,12 +62,12 @@ def primitive(name=None, min_args=None, max_args=None, arg_types=None):
 
 
 @primitive(name="cons", min_args=2, max_args=2)
-def prim_cons(args: list[ASTNode], _):
+def prim_cons(args: list[ASTNode], _) -> ConsNode:
     return ConsNode(args[0], args[1])
 
 
 @primitive(name="list")
-def prim_list(args: list[ASTNode], _):
+def prim_list(args: list[ASTNode], _) -> AtomNode | ConsNode:
     if len(args) == 0:
         return AtomNode("BOOLEAN", "nil")
 
@@ -260,7 +260,7 @@ def prim_not(args: list[ASTNode], _) -> ASTNode:
 
 
 @primitive(name=">", min_args=2, arg_types=("INT", "FLOAT"))
-def prim_greater(args: list[ASTNode], env: Environment) -> ASTNode:
+def prim_greater(args: list[ASTNode], _) -> ASTNode:
     for i in range(len(args) - 1):
         if args[i].value <= args[i + 1].value:
             return AtomNode("BOOLEAN", "nil")
@@ -269,7 +269,7 @@ def prim_greater(args: list[ASTNode], env: Environment) -> ASTNode:
 
 
 @primitive(name=">=", min_args=2, arg_types=("INT", "FLOAT"))
-def prim_greater_equal(args: list[ASTNode], env: Environment) -> ASTNode:
+def prim_greater_equal(args: list[ASTNode], _) -> ASTNode:
     for i in range(len(args) - 1):
         if args[i].value < args[i + 1].value:
             return AtomNode("BOOLEAN", "nil")
@@ -278,7 +278,7 @@ def prim_greater_equal(args: list[ASTNode], env: Environment) -> ASTNode:
 
 
 @primitive(name="<", min_args=2, arg_types=("INT", "FLOAT"))
-def prim_smaller(args: list[ASTNode], env: Environment) -> ASTNode:
+def prim_smaller(args: list[ASTNode], _) -> ASTNode:
     for i in range(len(args) - 1):
         if args[i].value >= args[i + 1].value:
             return AtomNode("BOOLEAN", "nil")
@@ -287,7 +287,7 @@ def prim_smaller(args: list[ASTNode], env: Environment) -> ASTNode:
 
 
 @primitive(name="<=", min_args=2, arg_types=("INT", "FLOAT"))
-def prim_smaller_equal(args: list[ASTNode], env: Environment) -> ASTNode:
+def prim_smaller_equal(args: list[ASTNode], _) -> ASTNode:
     for i in range(len(args) - 1):
         if args[i].value > args[i + 1].value:
             return AtomNode("BOOLEAN", "nil")
@@ -296,7 +296,7 @@ def prim_smaller_equal(args: list[ASTNode], env: Environment) -> ASTNode:
 
 
 @primitive(name="=", min_args=2, arg_types=("INT", "FLOAT"))
-def prim_equal(args: list[ASTNode], env: Environment) -> ASTNode:
+def prim_equal(args: list[ASTNode], _) -> ASTNode:
     for i in range(len(args) - 1):
         if args[i].value != args[i + 1].value:
             return AtomNode("BOOLEAN", "nil")
@@ -305,7 +305,7 @@ def prim_equal(args: list[ASTNode], env: Environment) -> ASTNode:
 
 
 @primitive(name="string-append", min_args=2, arg_types=("STRING",))
-def prim_string_append(args: list[ASTNode], env: Environment) -> ASTNode:
+def prim_string_append(args: list[ASTNode], _) -> ASTNode:
     new_string = ""
 
     for arg in args:
@@ -315,7 +315,7 @@ def prim_string_append(args: list[ASTNode], env: Environment) -> ASTNode:
 
 
 @primitive(name="string>?", min_args=2, arg_types=("STRING",))
-def prim_string_greater(args: list[ASTNode], env: Environment) -> ASTNode:
+def prim_string_greater(args: list[ASTNode], _) -> ASTNode:
     for i in range(len(args) - 1):
         if args[i].value <= args[i + 1].value:
             return AtomNode("BOOLEAN", "nil")
@@ -324,7 +324,7 @@ def prim_string_greater(args: list[ASTNode], env: Environment) -> ASTNode:
 
 
 @primitive(name="string<?", min_args=2, arg_types=("STRING",))
-def prim_string_smaller(args: list[ASTNode], env: Environment) -> ASTNode:
+def prim_string_smaller(args: list[ASTNode], _) -> ASTNode:
     for i in range(len(args) - 1):
         if args[i].value >= args[i + 1].value:
             return AtomNode("BOOLEAN", "nil")
@@ -333,7 +333,7 @@ def prim_string_smaller(args: list[ASTNode], env: Environment) -> ASTNode:
 
 
 @primitive(name="string=?", min_args=2, arg_types=("STRING",))
-def prim_string_equal(args: list[ASTNode], env: Environment) -> ASTNode:
+def prim_string_equal(args: list[ASTNode], _) -> ASTNode:
     for i in range(len(args) - 1):
         if args[i].value != args[i + 1].value:
             return AtomNode("BOOLEAN", "nil")
@@ -342,7 +342,7 @@ def prim_string_equal(args: list[ASTNode], env: Environment) -> ASTNode:
 
 
 @primitive(name="eqv?", min_args=2, max_args=2)
-def prim_is_eqv(args: list[ASTNode], env: Environment) -> ASTNode:
+def prim_is_eqv(args: list[ASTNode], _) -> ASTNode:
     arg1 = args[0]
     arg2 = args[1]
 
@@ -359,16 +359,21 @@ def prim_is_eqv(args: list[ASTNode], env: Environment) -> ASTNode:
 
 
 @primitive(name="equal?", min_args=2, max_args=2)
-def prim_is_equal(args: list[ASTNode], env: Environment) -> ASTNode:
+def prim_is_equal(args: list[ASTNode], _) -> ASTNode:
     arg1 = args[0]
     arg2 = args[1]
     return AtomNode("BOOLEAN", "#t" if arg1 == arg2 else "nil")
 
 
 @primitive(name="clean-environment", min_args=0, max_args=0)
-def prim_clean_env(args: list[ASTNode], env: Environment) -> ASTNode:
+def prim_clean_env(_, env: Environment) -> ASTNode:
     env.clear()
     return AtomNode("SYMBOL", "environment cleaned")
+
+
+@primitive(name="exit", min_args=0, max_args=0)
+def prim_exit(_, __) -> None:
+    raise SchemeExitException("Interpreter exited")
 
 
 __all__ = [
@@ -403,5 +408,6 @@ __all__ = [
     "prim_string_equal",
     "prim_is_eqv",
     "prim_is_equal",
-    "prim_clean_env"
+    "prim_clean_env",
+    "prim_exit"
 ]

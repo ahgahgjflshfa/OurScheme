@@ -2,7 +2,8 @@ from src.ast_nodes import *
 from src.base.callable import CallableEntity
 from src.builtins_registry import built_in_funcs
 from src.environment import Environment
-from src.errors import NotCallableError, NonListError, DefineLevelError, CleanEnvLevelError
+from src.errors import (NotCallableError, NonListError, LevelDefineError,
+                        LevelCleanEnvError, LevelExitError, NoReturnValue)
 from src.special_forms import SpecialForm
 
 
@@ -30,19 +31,25 @@ class Evaluator:
             if not isinstance(func, CallableEntity):
                 raise NotCallableError(func)
 
+            if func is self.builtins["define"] and level != "toplevel":
+                raise LevelDefineError()
+            elif func is self.builtins["clean-environment"] and level != "toplevel":
+                raise LevelCleanEnvError()
+            elif func is self.builtins["exit"] and level != "toplevel":
+                raise LevelExitError()
+
             func.check_arity(args)
 
-            if func is self.builtins["define"] and level != "toplevel":
-                raise DefineLevelError()
-            elif func is self.builtins["clean-environment"] and level != "toplevel":
-                raise CleanEnvLevelError()
-
-
             if isinstance(func, SpecialForm):   # Special forms
-                return func(args, env, self)
+                eval_result = func(args, env, self)
             else:  # Primitive functions
                 evaluated_args = self.eval_list(args, env)
-                return func(evaluated_args, env)
+                eval_result = func(evaluated_args, env)
+
+            if eval_result is None:
+                raise NoReturnValue(ast)
+
+            return eval_result
 
     @staticmethod
     def extract_list(cons_node: ConsNode) -> list[ASTNode]:
@@ -58,4 +65,4 @@ class Evaluator:
         return args
 
     def eval_list(self, args: list[ASTNode], env: Environment) -> list[ASTNode]:
-        return [self.evaluate(arg, env) for arg in args]
+        return [self.evaluate(arg, env, "inner") for arg in args]

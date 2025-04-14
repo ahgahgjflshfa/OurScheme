@@ -1,5 +1,6 @@
 from src.ast_nodes import *
 from src.errors import *
+from src.errors import SchemeExitException
 from src.evaluator import Evaluator
 from src.lexer import Lexer
 from src.parser import Parser
@@ -21,8 +22,6 @@ def repl():
                 print("\n>", end=" ")
 
             new_input = input()  # read new input
-            if new_input.lower() == "(exit)":
-                break
 
             partial_input += new_input + "\n"  # add new line input
 
@@ -33,20 +32,17 @@ def repl():
             parser = Parser(lexer)
 
             # Parsing
+            first = True
             try:
                 while parser.current.type != "EOF":  # Parse until lexer reached the end
+                    if not first:
+                        print("\n>", end=" ")
+
                     result = parser.parse()
 
-                    new_s_exp_start = parser.last_s_exp_pos + 1
+                    first = False
 
-                    # check if (exit) are an independent s exp
-                    if isinstance(result, ConsNode):
-                        if ((isinstance(result.car,
-                                        AtomNode) and result.car.type == "SYMBOL" and result.car.value == "exit") and
-                                (isinstance(result.cdr,
-                                            AtomNode) and result.cdr.type == "BOOLEAN" and result.cdr.value == "nil")):
-                            print("\nThanks for using OurScheme!")
-                            return
+                    new_s_exp_start = parser.last_s_exp_pos + 1
 
                     # Eval
                     try:
@@ -79,7 +75,7 @@ def repl():
                     except NotCallableError as e:
                         print(f"{e} : {pretty_print(e.operator)}")
 
-                    except NonListError as e:
+                    except (NonListError, NoReturnValue) as e:
                         print(f"{e} : {pretty_print(e.ast)}")
 
                     except DivisionByZeroError as e:
@@ -88,7 +84,7 @@ def repl():
                     except IncorrectArgumentNumber as e:
                         print(f"{e} : {e.operator}")
 
-                    except (DefineLevelError, CleanEnvLevelError) as e:
+                    except (LevelDefineError, LevelCleanEnvError, LevelExitError) as e:
                         print(f"{e}")
 
                 partial_input = ""  # after parsing, clear input
@@ -104,7 +100,7 @@ def repl():
                 new_s_exp_start = 0
 
             except UnexpectedTokenError as e:
-                if e.value in (".", ")"):
+                if e.type == 1:
                     print(f"{e} : atom or '(' expected when token at Line {e.line} Column {e.column} is >>{e.value}<<")
                 else:
                     print(f"{e} : ')' expected when token at Line {e.line} Column {e.column} is >>{e.value}<<")
@@ -112,14 +108,17 @@ def repl():
                 partial_input = ""
                 new_s_exp_start = 0
 
+        except SchemeExitException:
+            break
+
         except EmptyInputError:
             empty_line_encountered = True
             continue
 
         except EOFError:
-            print("ERROR (no more input) : END-OF-FILE encountered")
+            print("ERROR (no more input) : END-OF-FILE encountered", end="")
             break
 
         empty_line_encountered = False
 
-    print("Thanks for using OurScheme!", end="")
+    print("\nThanks for using OurScheme!", end="")
