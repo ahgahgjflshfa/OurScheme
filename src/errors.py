@@ -56,6 +56,11 @@ class CondFormatError(OurSchemeError):
         super().__init__(f"COND format")
 
 
+class LambdaFormatError(OurSchemeError):
+    def __init__(self):
+        super().__init__(f"lambda format")
+
+
 class UnboundSymbolError(OurSchemeError):
     def __init__(self, symbol_: str):
         self.symbol = symbol_
@@ -121,6 +126,7 @@ __all__ = [
     "UnexpectedTokenError",
     "DefineFormatError",
     "CondFormatError",
+    "LambdaFormatError",
     "UnboundSymbolError",
     "IncorrectArgumentType",
     "NotCallableError",

@@ -2,12 +2,13 @@ from src.errors import DefineFormatError, UnboundSymbolError
 
 
 class Environment:
-    def __init__(self, builtins=None):
+    def __init__(self, builtins=None, outer=None):
         self.builtins = builtins or {}
         self.user_define = {}
+        self.outer = outer
 
     def define(self, symbol: str, value):
-        if symbol in self.builtins:
+        if self.builtins and symbol in self.builtins:
             raise DefineFormatError()
 
         self.user_define[symbol] = value
@@ -20,8 +21,11 @@ class Environment:
         if symbol in self.user_define:
             return self.user_define[symbol]
 
-        elif symbol in self.builtins:
+        elif self.builtins and symbol in self.builtins:
             return self.builtins[symbol]
+
+        elif self.outer:
+            return self.outer.lookup(symbol)
 
         else:
             raise UnboundSymbolError(symbol)

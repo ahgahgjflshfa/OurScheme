@@ -1,16 +1,17 @@
 from src.ast_nodes import *
-from src.base.callable import CallableEntity
 from src.builtins_registry import built_in_funcs
 from src.environment import Environment
 from src.errors import (NotCallableError, NonListError, LevelDefineError,
-                        LevelCleanEnvError, LevelExitError, NoReturnValue)
-from src.special_forms import SpecialForm
+                        LevelCleanEnvError, LevelExitError, NoReturnValue, LambdaFormatError, IncorrectArgumentNumber)
+from src.function_object import SpecialForm, PrimitiveFunction, UserDefinedFunction
+from src.special_forms import eval_lambda
 
 
 class Evaluator:
-    def __init__(self, builtins: dict[str, object] = None, env: Environment = None):
+    def __init__(self, builtins: dict[str, object]=None, env: Environment=None, verbose: bool=True):
         self.builtins = builtins if builtins is not None else built_in_funcs
         self.env = env if env is not None else Environment(self.builtins)
+        self.verbose = verbose
 
     def evaluate(self, ast: ASTNode, env: Environment = None, level: str = "toplevel"):
         env = env if env is not None else self.env
@@ -25,10 +26,34 @@ class Evaluator:
             return ast.value
 
         elif isinstance(ast, ConsNode):
-            func = self.evaluate(ast.car, env)
-            args = Evaluator.extract_list(ast)
+            first = ast.car
 
-            if not isinstance(func, CallableEntity):
+            # === Verbose Setting ===
+            if first == AtomNode("SYMBOL", "verbose"):
+                args = Evaluator.extract_list(ast.cdr)
+                if len(args) != 1:
+                    raise IncorrectArgumentNumber("verbose")
+
+                value = self.evaluate(args[0])
+                self.verbose = True if value == AtomNode("BOOLEAN", "#t") else False
+                return value
+
+            if first == AtomNode("SYMBOL", "verbose?"):
+                return AtomNode("BOOLEAN", "#t") if self.verbose else AtomNode("BOOLEAN", "nil")
+
+
+            # === Special form based constructions ===
+            if first == AtomNode("SYMBOL", "lambda"):
+                if not isinstance(ast.cdr , ConsNode):
+                    raise LambdaFormatError()
+
+                return eval_lambda(ast.cdr, env)
+
+            # === Others ===
+            func = self.evaluate(first, env, "inner")
+            args = Evaluator.extract_list(ast.cdr)
+
+            if not isinstance(func, (PrimitiveFunction, SpecialForm, UserDefinedFunction)):
                 raise NotCallableError(func)
 
             if func is self.builtins["define"] and level != "toplevel":
@@ -40,11 +65,11 @@ class Evaluator:
 
             func.check_arity(args)
 
-            if isinstance(func, SpecialForm):   # Special forms
+            if isinstance(func, (SpecialForm, UserDefinedFunction)):   # Special forms
                 eval_result = func(args, env, self)
             else:  # Primitive functions
                 evaluated_args = self.eval_list(args, env)
-                eval_result = func(evaluated_args, env)
+                eval_result = func(evaluated_args, env, self)
 
             if eval_result is None:
                 raise NoReturnValue(ast)
@@ -52,9 +77,9 @@ class Evaluator:
             return eval_result
 
     @staticmethod
-    def extract_list(cons_node: ConsNode) -> list[ASTNode]:
+    def extract_list(cons_node: ASTNode) -> list[ASTNode]:
         args = []
-        curr_ast = cons_node.cdr
+        curr_ast = cons_node
         while isinstance(curr_ast, ConsNode):
             args.append(curr_ast.car)
             curr_ast = curr_ast.cdr

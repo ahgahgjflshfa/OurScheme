@@ -49,21 +49,16 @@ def repl():
                         eval_result = evaluator.evaluate(result)
 
                         # 特判 define，輸出 "x defined"
-                        if (isinstance(result, ConsNode) and
-                                isinstance(result.car, AtomNode) and result.car.value == "define" and
-                                isinstance(result.cdr, ConsNode) and
-                                isinstance(result.cdr.car, AtomNode)):
-
-                            var_name = result.cdr.car.value
-                            print(f"{var_name} defined")
-
-                        elif eval_result is None:
+                        if eval_result is None:
                             print(f"ERROR (no return value) : {pretty_print(result)}")
+
+                        elif isinstance(eval_result, AtomNode) and eval_result.type == "VOID":    # for verbose
+                            continue
 
                         else:
                             print(f"{pretty_print(eval_result).lstrip('\n')}")
 
-                    except (DefineFormatError, CondFormatError) as e:
+                    except (DefineFormatError, CondFormatError, LambdaFormatError) as e:
                         print(f"{e} : {pretty_print(result)}")
 
                     except UnboundSymbolError as e:

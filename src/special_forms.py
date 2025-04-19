@@ -1,15 +1,7 @@
 from src.ast_nodes import *
 from src.environment import Environment
-from src.errors import DefineFormatError, CondFormatError
-from src.base.callable import CallableEntity
-
-
-class SpecialForm(CallableEntity):
-    def __init__(self, name, func, min_args, max_args):
-        super().__init__(name, func, min_args, max_args)
-
-    def __call__(self, args, env, evaluator):
-        return self.func(args, env, evaluator)
+from src.errors import DefineFormatError, CondFormatError, LambdaFormatError
+from src.function_object import SpecialForm, UserDefinedFunction
 
 
 def special(name, min_args=None, max_args=None):
@@ -33,20 +25,50 @@ def special_quote(args: list[ASTNode], env: Environment, evaluator: "Evaluator")
 @special(name="define")
 def special_define(args: list[str, ASTNode], env: Environment, evaluator: "Evaluator") -> ASTNode:
     # Define has it own rules for the arguments, so I'm not using the decorator for checking argument
-    if len(args) != 2:
+    if len(args) < 2:
         raise DefineFormatError()
 
-    symbol = args[0]
+    if isinstance(args[0], AtomNode):
+        symbol = args[0]
 
-    if not isinstance(symbol, AtomNode) or symbol.type != "SYMBOL":
-        raise DefineFormatError()
+        if symbol.type != "SYMBOL":
+            raise DefineFormatError()
 
-    symbol_name = symbol.value
-    value = args[1]
+        symbol_name = symbol.value
+        value = args[1]
 
-    env.define(symbol_name, evaluator.evaluate(value, env, "inner"))
+        env.define(symbol_name, evaluator.evaluate(value, env, "inner"))
 
-    return AtomNode("SYMBOL", symbol)
+        if evaluator.verbose:
+            print(f"{symbol_name} defined")
+
+    else:   # syntactic sugar for lambda, e.g. (define (f x y) (+ x y)) === (define f (lambda (x y) (+ x y)))
+        # Function name and parameters
+        func_sig = args[0]
+        curr = func_sig
+        signatures = []
+        while isinstance(curr, ConsNode):
+            if not isinstance(curr.car, AtomNode) or curr.car.type != "SYMBOL":
+                raise DefineFormatError()
+
+            signatures.append(curr.car.value)
+            curr = curr.cdr
+
+        if curr != AtomNode("BOOLEAN", "nil"):
+            raise DefineFormatError()
+
+        func_name = signatures[0]
+        params = signatures[1:]
+
+        # Body list
+        body = args[1:]
+
+        env.define(func_name, UserDefinedFunction(params, body, env))
+
+        if evaluator.verbose:
+            print(f"{func_name} defined")
+
+    return AtomNode("VOID", "")
 
 
 @special(name="and", min_args=2)
@@ -132,13 +154,53 @@ def special_cond(args: list[ASTNode], env: Environment, evaluator: "Evaluator") 
         return evaluator.evaluate(exprs[-1], env, "inner")
 
 
+def eval_lambda(args: ConsNode, env: Environment) -> UserDefinedFunction:
+    """
+
+    Args:
+        args: A pair which car is the param list for lambda and cdr is the body (at least one body).
+        env: The closure environment.
+
+    Returns:
+        A UserDefinedFunction class representing a lambda expression.
+    """
+    # Check legality of car (a list or empty)
+    param = []
+    curr_param = args.car
+
+    while isinstance(curr_param, ConsNode):
+        if not isinstance(curr_param.car, AtomNode) or curr_param.car.type != "SYMBOL":
+            raise LambdaFormatError()
+
+        param.append(curr_param.car.value)
+        curr_param = curr_param.cdr
+
+    if curr_param != AtomNode("BOOLEAN", "nil"):
+        raise LambdaFormatError()
+
+
+    # Body shouldn't be empty
+    body = []
+    curr_body = args.cdr
+
+    while isinstance(curr_body, ConsNode):
+        body.append(curr_body.car)  # 你原本放的是 curr_param（誤）
+        curr_body = curr_body.cdr
+
+    if len(body) == 0 or curr_body != AtomNode("BOOLEAN", "nil"):
+        raise LambdaFormatError()
+
+
+    return UserDefinedFunction(param_list=param, body=body, env=env)
+
+
 __all__ = [
-    "SpecialForm",
     "special_quote",
     "special_define",
     "special_and",
     "special_or",
     "special_begin",
     "special_if",
-    "special_cond"
+    "special_cond",
+    "eval_lambda"
 ]
