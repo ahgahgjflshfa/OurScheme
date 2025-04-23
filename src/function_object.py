@@ -1,5 +1,5 @@
 from src.ast_nodes import *
-from src.errors import IncorrectArgumentType, IncorrectArgumentNumber
+from src.errors import IncorrectArgumentType, IncorrectArgumentNumber, UnboundParameterError
 from src.base.callable import CallableEntity
 from src.environment import Environment
 
@@ -109,8 +109,12 @@ class UserDefinedFunction(CallableEntity):
 
         call_env = Environment(builtins=self.env.builtins, outer=self.env)
         for param, value in zip(self.param_list, args):
-            # evaled_value = evaluator.evaluate(value, call_site_env, "inner")
-            call_env.define(param, value)
+            evaled_value = evaluator.evaluate(value, call_site_env, "inner")
+
+            if evaled_value is None:
+                raise UnboundParameterError(value)
+
+            call_env.define(param, evaled_value)
 
         for expr in self.body[:-1]:
             evaluator.evaluate(expr, call_env, "inner")

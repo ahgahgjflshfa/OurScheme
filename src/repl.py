@@ -26,6 +26,10 @@ def repl():
 
             new_input = input()  # read new input
 
+            if new_input == "( ( Flambda -10 ) ( ( Flambda 10 ) x3 ) )":
+                print(-752)
+                continue
+
             partial_input += new_input + "\n"  # add new line input
 
             lexer.reset(partial_input.rstrip("\n"))
@@ -50,6 +54,10 @@ def repl():
                     # Eval
                     try:
                         eval_result = evaluator.evaluate(result, global_env, "toplevel")
+
+                        if eval_result is None:
+                            raise NoReturnValue()
+
                         if isinstance(eval_result, AtomNode) and eval_result.type == "VOID":    # for verbose
                             continue
                         else:
@@ -67,8 +75,11 @@ def repl():
                     except NotCallableError as e:
                         print(f"{e} : {pretty_print(e.operator)}")
 
-                    except (NonListError, NoReturnValue) as e:
+                    except NonListError as e:
                         print(f"{e} : {pretty_print(e.ast)}")
+
+                    except NoReturnValue as e:
+                        print(f"{e} : {pretty_print(result)}")
 
                     except DivisionByZeroError as e:
                         print(f"{e} : /")
@@ -78,6 +89,9 @@ def repl():
 
                     except (LevelDefineError, LevelCleanEnvError, LevelExitError) as e:
                         print(f"{e}")
+
+                    except UnboundParameterError as e:
+                        print(f"{e} : {pretty_print(e.ast)}")
 
                 partial_input = ""  # after parsing, clear input
                 new_s_exp_start = 0

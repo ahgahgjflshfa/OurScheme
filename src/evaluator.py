@@ -2,7 +2,8 @@ from src.ast_nodes import *
 from src.builtins_registry import built_in_funcs
 from src.environment import Environment
 from src.errors import (NotCallableError, NonListError, LevelDefineError,
-                        LevelCleanEnvError, LevelExitError, NoReturnValue, LambdaFormatError, IncorrectArgumentNumber)
+                        LevelCleanEnvError, LevelExitError, NoReturnValue, LambdaFormatError, IncorrectArgumentNumber,
+                        UnboundParameterError)
 from src.function_object import SpecialForm, PrimitiveFunction, UserDefinedFunction
 from src.special_forms import eval_lambda
 
@@ -68,14 +69,14 @@ class Evaluator:
 
             func.check_arity(args)
 
-            if isinstance(func, SpecialForm):   # Special forms
+            if isinstance(func, (SpecialForm,)):   # Special forms
                 eval_result = func(args, env, self)
             else:  # Primitive functions
                 evaluated_args = self.eval_list(args, env)
                 eval_result = func(evaluated_args, env, self)
 
-            if eval_result is None:
-                raise NoReturnValue(ast)
+            # if eval_result is None:
+            #     raise NoReturnValue(ast)
 
             return eval_result
 
@@ -95,4 +96,13 @@ class Evaluator:
         return args
 
     def eval_list(self, args: list[ASTNode], env: Environment) -> list[ASTNode]:
-        return [self.evaluate(arg, env, "inner") for arg in args]
+        evaled_args = []
+
+        for arg in args:
+            evaled = self.evaluate(arg, env, "inner")
+            if evaled is None:
+                raise UnboundParameterError(arg)
+
+            evaled_args.append(evaled)
+
+        return evaled_args

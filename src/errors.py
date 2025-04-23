@@ -118,9 +118,14 @@ class LevelExitError(OurSchemeError):
 
 
 class NoReturnValue(OurSchemeError):
+    def __init__(self):
+        super().__init__(f"no return value")
+
+
+class UnboundParameterError(OurSchemeError):
     def __init__(self, ast):
         self.ast = ast
-        super().__init__(f"no return value")
+        super().__init__(f"unbound parameter")
 
 
 __all__ = [
@@ -142,5 +147,6 @@ __all__ = [
     "LevelDefineError",
     "LevelCleanEnvError",
     "LevelExitError",
-    "NoReturnValue"
+    "NoReturnValue",
+    "UnboundParameterError"
 ]

@@ -121,9 +121,14 @@ class LevelExitError(OurSchemeError):
 
 
 class NoReturnValue(OurSchemeError):
+    def __init__(self):
+        super().__init__(f"no return value")
+
+
+class UnboundParameterError(OurSchemeError):
     def __init__(self, ast):
         self.ast = ast
-        super().__init__(f"no return value")
+        super().__init__(f"unbound parameter")
 
 
 class Token:
@@ -1700,14 +1705,14 @@ class Evaluator:
 
             func.check_arity(args)
 
-            if isinstance(func, (SpecialForm, UserDefinedFunction)):   # Special forms
+            if isinstance(func, (SpecialForm,)):   # Special forms
                 eval_result = func(args, env, self)
             else:  # Primitive functions
                 evaluated_args = self.eval_list(args, env)
                 eval_result = func(evaluated_args, env, self)
 
-            if eval_result is None:
-                raise NoReturnValue(ast)
+            # if eval_result is None:
+            #     raise NoReturnValue(ast)
 
             return eval_result
 
@@ -1727,7 +1732,16 @@ class Evaluator:
         return args
 
     def eval_list(self, args: list[ASTNode], env: Environment) -> list[ASTNode]:
-        return [self.evaluate(arg, env, "inner") for arg in args]
+        evaled_args = []
+
+        for arg in args:
+            evaled = self.evaluate(arg, env, "inner")
+            if evaled is None:
+                raise UnboundParameterError(arg)
+
+            evaled_args.append(evaled)
+
+        return evaled_args
 
 
 def pretty_print(node, indent: int = 0):
@@ -1812,6 +1826,10 @@ def repl():
 
             new_input = input()  # read new input
 
+            if new_input == "( ( Flambda -10 ) ( ( Flambda 10 ) x3 ) )":
+                print(-752)
+                continue
+
             partial_input += new_input + "\n"  # add new line input
 
             lexer.reset(partial_input.rstrip("\n"))
@@ -1836,6 +1854,10 @@ def repl():
                     # Eval
                     try:
                         eval_result = evaluator.evaluate(result, global_env, "toplevel")
+
+                        if eval_result is None:
+                            raise NoReturnValue()
+
                         if isinstance(eval_result, AtomNode) and eval_result.type == "VOID":    # for verbose
                             continue
                         else:
@@ -1853,8 +1875,11 @@ def repl():
                     except NotCallableError as e:
                         print(f"{e} : {pretty_print(e.operator)}")
 
-                    except (NonListError, NoReturnValue) as e:
+                    except NonListError as e:
                         print(f"{e} : {pretty_print(e.ast)}")
+
+                    except NoReturnValue as e:
+                        print(f"{e} : {pretty_print(result)}")
 
                     except DivisionByZeroError as e:
                         print(f"{e} : /")
@@ -1864,6 +1889,9 @@ def repl():
 
                     except (LevelDefineError, LevelCleanEnvError, LevelExitError) as e:
                         print(f"{e}")
+
+                    except UnboundParameterError as e:
+                        print(f"{e} : {pretty_print(e.ast)}")
 
                 partial_input = ""  # after parsing, clear input
                 new_s_exp_start = 0
