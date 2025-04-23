@@ -1,6 +1,6 @@
 from src.ast_nodes import *
 from src.environment import Environment
-from src.errors import DefineFormatError, CondFormatError, LambdaFormatError, LetFormatError
+from src.errors import DefineFormatError, CondFormatError, LambdaFormatError, LetFormatError, UnboundConditionError
 from src.function_object import SpecialForm, UserDefinedFunction
 
 
@@ -63,7 +63,7 @@ def special_define(args: list[ASTNode], env: Environment, evaluator: "Evaluator"
         # Body list
         body = args[1:]
 
-        env.define(func_name, UserDefinedFunction(name=func_name, param_list=params, body=body, env=env))
+        env.define(func_name, UserDefinedFunction(name=func_name, param_list=params, body=body))
 
         if evaluator.verbose:
             print(f"{func_name} defined")
@@ -76,6 +76,9 @@ def special_and(args: list[ASTNode], env: Environment, evaluator: "Evaluator") -
     eval_result = None
     for arg in args:
         eval_result = evaluator.evaluate(arg, env, "inner")
+        if eval_result is None:
+            raise UnboundConditionError(arg)
+
         if eval_result == AtomNode("BOOLEAN", "nil"):
             return AtomNode("BOOLEAN", "nil")
 
@@ -86,6 +89,9 @@ def special_and(args: list[ASTNode], env: Environment, evaluator: "Evaluator") -
 def special_or(args: list[ASTNode], env: Environment, evaluator: "Evaluator") -> ASTNode:
     for arg in args:
         eval_result = evaluator.evaluate(arg, env, "inner")
+        if eval_result is None:
+            raise UnboundConditionError(arg)
+
         if eval_result != AtomNode("BOOLEAN", "nil"):
             return eval_result
 
@@ -159,19 +165,29 @@ def special_cond(args: list[ASTNode], env: Environment, evaluator: "Evaluator") 
 
 @special(name="let")
 def special_let(args: list[ASTNode], env: Environment, evaluator: "Evaluator"):
+    def args_to_cons(args: list[ASTNode]) -> ASTNode:
+        result = AtomNode("BOOLEAN", "nil")
+        for node in reversed(args):  # 從最後一個開始包
+            result = ConsNode(node, result)
+        return result
+
+    full_let_expr = ConsNode(AtomNode("SYMBOL", "let"), args_to_cons(args))
+
     if len(args) < 2:
-        raise LetFormatError()
+        raise LetFormatError(full_let_expr)
 
     let_env = Environment(outer=env)
     bindings, *body = args
 
     if isinstance(bindings, AtomNode):
         if not (bindings.type == "BOOLEAN" and bindings.value == "nil"):
-            raise LetFormatError()
+            raise LetFormatError(full_let_expr)
+        binding_list = []
     else:
         if not isinstance(bindings, ConsNode):
-            raise LetFormatError()
+            raise LetFormatError(full_let_expr)
 
+        binding_list = []
         curr = bindings
         while isinstance(curr, ConsNode):
             pair = curr.car
@@ -180,17 +196,19 @@ def special_let(args: list[ASTNode], env: Environment, evaluator: "Evaluator"):
                     isinstance(pair.car, AtomNode) and pair.car.type == "SYMBOL" and
                     isinstance(pair.cdr, ConsNode) and
                     pair.cdr.cdr == AtomNode("BOOLEAN", "nil")):
-                raise LetFormatError()
+                raise LetFormatError(full_let_expr)
 
             symbol = pair.car.value
             expr = pair.cdr.car
-            value = evaluator.evaluate(expr, env, "inner")
-
-            let_env.define(symbol, value)
+            binding_list.append((symbol, expr))
             curr = curr.cdr
 
         if curr != AtomNode("BOOLEAN", "nil"):
-            raise LetFormatError()
+            raise LetFormatError(full_let_expr)
+
+    for symbol, expr in binding_list:
+        value = evaluator.evaluate(expr, env, "inner")
+        let_env.define(symbol, value)
 
     for expr in body[:-1]:
         evaluator.evaluate(expr, let_env, "inner")
@@ -235,7 +253,7 @@ def eval_lambda(args: ConsNode, env: Environment) -> UserDefinedFunction:
         raise LambdaFormatError()
 
 
-    return UserDefinedFunction(name="lambda", param_list=param, body=body, env=env)
+    return UserDefinedFunction(name="lambda", param_list=param, body=body)
 
 
 __all__ = [

@@ -9,7 +9,8 @@ from src.special_forms import eval_lambda
 
 
 class Evaluator:
-    def __init__(self, builtins: dict[str, object]=None, verbose: bool=True):
+    def __init__(self, global_env: Environment, builtins: dict[str, object]=None, verbose: bool=True):
+        self.global_env = global_env
         self.builtins = builtins if builtins is not None else built_in_funcs
         self.verbose = verbose
 
@@ -55,6 +56,8 @@ class Evaluator:
 
             # === Others ===
             func = self.evaluate(first, env, "inner")
+            if func is None:
+                raise NoReturnValue(first)
             args = Evaluator.extract_list(ast.cdr)
 
             if not isinstance(func, (PrimitiveFunction, SpecialForm, UserDefinedFunction)):
@@ -69,14 +72,11 @@ class Evaluator:
 
             func.check_arity(args)
 
-            if isinstance(func, (SpecialForm,)):   # Special forms
+            if isinstance(func, (SpecialForm, )):   # Special forms
                 eval_result = func(args, env, self)
             else:  # Primitive functions
                 evaluated_args = self.eval_list(args, env)
                 eval_result = func(evaluated_args, env, self)
-
-            # if eval_result is None:
-            #     raise NoReturnValue(ast)
 
             return eval_result
 

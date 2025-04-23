@@ -65,7 +65,8 @@ class LambdaFormatError(OurSchemeError):
 
 
 class LetFormatError(OurSchemeError):
-    def __init__(self):
+    def __init__(self, ast):
+        self.ast = ast
         super().__init__(f"LET format")
 
 
@@ -121,7 +122,8 @@ class LevelExitError(OurSchemeError):
 
 
 class NoReturnValue(OurSchemeError):
-    def __init__(self):
+    def __init__(self, ast):
+        self.ast = ast
         super().__init__(f"no return value")
 
 
@@ -129,6 +131,12 @@ class UnboundParameterError(OurSchemeError):
     def __init__(self, ast):
         self.ast = ast
         super().__init__(f"unbound parameter")
+
+
+class UnboundConditionError(OurSchemeError):
+    def __init__(self, ast):
+        self.ast = ast
+        super().__init__(f"unbound condition")
 
 
 class Token:
@@ -951,11 +959,10 @@ class SpecialForm(CallableEntity):
 
 
 class UserDefinedFunction(CallableEntity):
-    def __init__(self, name, param_list: list[str], body: list[ASTNode], env: "Environment"):
+    def __init__(self, name, param_list: list[str], body: list[ASTNode]):
         self.name = name
         self.param_list = param_list
         self.body = body
-        self.env = env      # closure
 
     @staticmethod
     def deepcopy(env: Environment):
@@ -969,16 +976,15 @@ class UserDefinedFunction(CallableEntity):
 
     def check_arity(self, args: list[ASTNode]):
         if len(self.param_list) != len(args):
-            raise IncorrectArgumentNumber("lambda")
+            raise IncorrectArgumentNumber(f"{self.name}")
 
     def __call__(self, args: list[ASTNode], call_site_env: Environment, evaluator: "Evaluator"):
         if len(self.param_list) != len(args):
-            raise IncorrectArgumentNumber("lambda")
+            raise IncorrectArgumentNumber(f"{self.name}")
 
-        call_env = Environment(builtins=self.env.builtins, outer=self.env)
+        call_env = Environment(builtins=call_site_env.builtins, outer=evaluator.global_env)
         for param, value in zip(self.param_list, args):
-            evaled_value = evaluator.evaluate(value, call_site_env, "inner")
-            call_env.define(param, evaled_value)
+            call_env.define(param, value)
 
         for expr in self.body[:-1]:
             evaluator.evaluate(expr, call_env, "inner")
@@ -1391,7 +1397,7 @@ def special_define(args: list[ASTNode], env: Environment, evaluator: "Evaluator"
         # Body list
         body = args[1:]
 
-        env.define(func_name, UserDefinedFunction(name=func_name, param_list=params, body=body, env=env))
+        env.define(func_name, UserDefinedFunction(name=func_name, param_list=params, body=body))
 
         if evaluator.verbose:
             print(f"{func_name} defined")
@@ -1404,6 +1410,9 @@ def special_and(args: list[ASTNode], env: Environment, evaluator: "Evaluator") -
     eval_result = None
     for arg in args:
         eval_result = evaluator.evaluate(arg, env, "inner")
+        if eval_result is None:
+            raise UnboundConditionError(arg)
+
         if eval_result == AtomNode("BOOLEAN", "nil"):
             return AtomNode("BOOLEAN", "nil")
 
@@ -1414,6 +1423,9 @@ def special_and(args: list[ASTNode], env: Environment, evaluator: "Evaluator") -
 def special_or(args: list[ASTNode], env: Environment, evaluator: "Evaluator") -> ASTNode:
     for arg in args:
         eval_result = evaluator.evaluate(arg, env, "inner")
+        if eval_result is None:
+            raise UnboundConditionError(arg)
+
         if eval_result != AtomNode("BOOLEAN", "nil"):
             return eval_result
 
@@ -1487,19 +1499,29 @@ def special_cond(args: list[ASTNode], env: Environment, evaluator: "Evaluator") 
 
 @special(name="let")
 def special_let(args: list[ASTNode], env: Environment, evaluator: "Evaluator"):
+    def args_to_cons(args: list[ASTNode]) -> ASTNode:
+        result = AtomNode("BOOLEAN", "nil")
+        for node in reversed(args):  # 從最後一個開始包
+            result = ConsNode(node, result)
+        return result
+
+    full_let_expr = ConsNode(AtomNode("SYMBOL", "let"), args_to_cons(args))
+
     if len(args) < 2:
-        raise LetFormatError()
+        raise LetFormatError(full_let_expr)
 
     let_env = Environment(outer=env)
     bindings, *body = args
 
     if isinstance(bindings, AtomNode):
         if not (bindings.type == "BOOLEAN" and bindings.value == "nil"):
-            raise LetFormatError()
+            raise LetFormatError(full_let_expr)
+        binding_list = []
     else:
         if not isinstance(bindings, ConsNode):
-            raise LetFormatError()
+            raise LetFormatError(full_let_expr)
 
+        binding_list = []
         curr = bindings
         while isinstance(curr, ConsNode):
             pair = curr.car
@@ -1508,17 +1530,19 @@ def special_let(args: list[ASTNode], env: Environment, evaluator: "Evaluator"):
                     isinstance(pair.car, AtomNode) and pair.car.type == "SYMBOL" and
                     isinstance(pair.cdr, ConsNode) and
                     pair.cdr.cdr == AtomNode("BOOLEAN", "nil")):
-                raise LetFormatError()
+                raise LetFormatError(full_let_expr)
 
             symbol = pair.car.value
             expr = pair.cdr.car
-            value = evaluator.evaluate(expr, env, "inner")
-
-            let_env.define(symbol, value)
+            binding_list.append((symbol, expr))
             curr = curr.cdr
 
         if curr != AtomNode("BOOLEAN", "nil"):
-            raise LetFormatError()
+            raise LetFormatError(full_let_expr)
+
+    for symbol, expr in binding_list:
+        value = evaluator.evaluate(expr, env, "inner")
+        let_env.define(symbol, value)
 
     for expr in body[:-1]:
         evaluator.evaluate(expr, let_env, "inner")
@@ -1563,7 +1587,7 @@ def eval_lambda(args: ConsNode, env: Environment) -> UserDefinedFunction:
         raise LambdaFormatError()
 
 
-    return UserDefinedFunction(name="lambda", param_list=param, body=body, env=env)
+    return UserDefinedFunction(name="lambda", param_list=param, body=body)
 
 
 # `quote`, `define`, `and`, `or` are special forms, others are just normal procedures.
@@ -1645,7 +1669,8 @@ built_in_funcs = {
 
 
 class Evaluator:
-    def __init__(self, builtins: dict[str, object]=None, verbose: bool=True):
+    def __init__(self, global_env: Environment, builtins: dict[str, object]=None, verbose: bool=True):
+        self.global_env = global_env
         self.builtins = builtins if builtins is not None else built_in_funcs
         self.verbose = verbose
 
@@ -1691,6 +1716,8 @@ class Evaluator:
 
             # === Others ===
             func = self.evaluate(first, env, "inner")
+            if func is None:
+                raise NoReturnValue(first)
             args = Evaluator.extract_list(ast.cdr)
 
             if not isinstance(func, (PrimitiveFunction, SpecialForm, UserDefinedFunction)):
@@ -1705,14 +1732,11 @@ class Evaluator:
 
             func.check_arity(args)
 
-            if isinstance(func, (SpecialForm,)):   # Special forms
+            if isinstance(func, (SpecialForm, )):   # Special forms
                 eval_result = func(args, env, self)
             else:  # Primitive functions
                 evaluated_args = self.eval_list(args, env)
                 eval_result = func(evaluated_args, env, self)
-
-            # if eval_result is None:
-            #     raise NoReturnValue(ast)
 
             return eval_result
 
@@ -1812,7 +1836,7 @@ def pretty_print(node, indent: int = 0):
 def repl():
     lexer = Lexer()
     global_env = Environment(built_in_funcs)
-    evaluator = Evaluator()
+    evaluator = Evaluator(global_env)
     print("Welcome to OurScheme!")
 
     empty_line_encountered = False
@@ -1826,9 +1850,6 @@ def repl():
 
             new_input = input()  # read new input
 
-            if new_input == "( ( Flambda -10 ) ( ( Flambda 10 ) x3 ) )":
-                print(-752)
-                continue
 
             partial_input += new_input + "\n"  # add new line input
 
@@ -1856,15 +1877,18 @@ def repl():
                         eval_result = evaluator.evaluate(result, global_env, "toplevel")
 
                         if eval_result is None:
-                            raise NoReturnValue()
+                            raise NoReturnValue(result)
 
                         if isinstance(eval_result, AtomNode) and eval_result.type == "VOID":    # for verbose
                             continue
                         else:
                             print(f"{pretty_print(eval_result).lstrip('\n')}")
 
-                    except (DefineFormatError, CondFormatError, LambdaFormatError, LetFormatError) as e:
+                    except (DefineFormatError, CondFormatError, LambdaFormatError) as e:
                         print(f"{e} : {pretty_print(result)}")
+
+                    except LetFormatError as e:
+                        print(f"{e} : {pretty_print(e.ast)}")
 
                     except UnboundSymbolError as e:
                         print(f"{e} : {e.symbol}")
@@ -1879,7 +1903,7 @@ def repl():
                         print(f"{e} : {pretty_print(e.ast)}")
 
                     except NoReturnValue as e:
-                        print(f"{e} : {pretty_print(result)}")
+                        print(f"{e} : {pretty_print(e.ast)}")
 
                     except DivisionByZeroError as e:
                         print(f"{e} : /")
@@ -1890,7 +1914,7 @@ def repl():
                     except (LevelDefineError, LevelCleanEnvError, LevelExitError) as e:
                         print(f"{e}")
 
-                    except UnboundParameterError as e:
+                    except (UnboundParameterError, UnboundConditionError) as e:
                         print(f"{e} : {pretty_print(e.ast)}")
 
                 partial_input = ""  # after parsing, clear input

@@ -62,7 +62,8 @@ class LambdaFormatError(OurSchemeError):
 
 
 class LetFormatError(OurSchemeError):
-    def __init__(self):
+    def __init__(self, ast):
+        self.ast = ast
         super().__init__(f"LET format")
 
 
@@ -118,7 +119,8 @@ class LevelExitError(OurSchemeError):
 
 
 class NoReturnValue(OurSchemeError):
-    def __init__(self):
+    def __init__(self, ast):
+        self.ast = ast
         super().__init__(f"no return value")
 
 
@@ -126,6 +128,12 @@ class UnboundParameterError(OurSchemeError):
     def __init__(self, ast):
         self.ast = ast
         super().__init__(f"unbound parameter")
+
+
+class UnboundConditionError(OurSchemeError):
+    def __init__(self, ast):
+        self.ast = ast
+        super().__init__(f"unbound condition")
 
 
 __all__ = [
@@ -148,5 +156,6 @@ __all__ = [
     "LevelCleanEnvError",
     "LevelExitError",
     "NoReturnValue",
-    "UnboundParameterError"
+    "UnboundParameterError",
+    "UnboundConditionError"
 ]

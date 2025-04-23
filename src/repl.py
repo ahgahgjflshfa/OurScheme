@@ -12,7 +12,7 @@ from src.environment import Environment
 def repl():
     lexer = Lexer()
     global_env = Environment(built_in_funcs)
-    evaluator = Evaluator()
+    evaluator = Evaluator(global_env)
     print("Welcome to OurScheme!")
 
     empty_line_encountered = False
@@ -26,9 +26,6 @@ def repl():
 
             new_input = input()  # read new input
 
-            if new_input == "( ( Flambda -10 ) ( ( Flambda 10 ) x3 ) )":
-                print(-752)
-                continue
 
             partial_input += new_input + "\n"  # add new line input
 
@@ -56,15 +53,18 @@ def repl():
                         eval_result = evaluator.evaluate(result, global_env, "toplevel")
 
                         if eval_result is None:
-                            raise NoReturnValue()
+                            raise NoReturnValue(result)
 
                         if isinstance(eval_result, AtomNode) and eval_result.type == "VOID":    # for verbose
                             continue
                         else:
                             print(f"{pretty_print(eval_result).lstrip('\n')}")
 
-                    except (DefineFormatError, CondFormatError, LambdaFormatError, LetFormatError) as e:
+                    except (DefineFormatError, CondFormatError, LambdaFormatError) as e:
                         print(f"{e} : {pretty_print(result)}")
+
+                    except LetFormatError as e:
+                        print(f"{e} : {pretty_print(e.ast)}")
 
                     except UnboundSymbolError as e:
                         print(f"{e} : {e.symbol}")
@@ -79,7 +79,7 @@ def repl():
                         print(f"{e} : {pretty_print(e.ast)}")
 
                     except NoReturnValue as e:
-                        print(f"{e} : {pretty_print(result)}")
+                        print(f"{e} : {pretty_print(e.ast)}")
 
                     except DivisionByZeroError as e:
                         print(f"{e} : /")
@@ -90,7 +90,7 @@ def repl():
                     except (LevelDefineError, LevelCleanEnvError, LevelExitError) as e:
                         print(f"{e}")
 
-                    except UnboundParameterError as e:
+                    except (UnboundParameterError, UnboundConditionError) as e:
                         print(f"{e} : {pretty_print(e.ast)}")
 
                 partial_input = ""  # after parsing, clear input

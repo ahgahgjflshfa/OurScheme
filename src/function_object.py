@@ -83,11 +83,10 @@ class SpecialForm(CallableEntity):
 
 
 class UserDefinedFunction(CallableEntity):
-    def __init__(self, name, param_list: list[str], body: list[ASTNode], env: "Environment"):
+    def __init__(self, name, param_list: list[str], body: list[ASTNode]):
         self.name = name
         self.param_list = param_list
         self.body = body
-        self.env = env      # closure
 
     @staticmethod
     def deepcopy(env: Environment):
@@ -101,20 +100,15 @@ class UserDefinedFunction(CallableEntity):
 
     def check_arity(self, args: list[ASTNode]):
         if len(self.param_list) != len(args):
-            raise IncorrectArgumentNumber("lambda")
+            raise IncorrectArgumentNumber(f"{self.name}")
 
     def __call__(self, args: list[ASTNode], call_site_env: Environment, evaluator: "Evaluator"):
         if len(self.param_list) != len(args):
-            raise IncorrectArgumentNumber("lambda")
+            raise IncorrectArgumentNumber(f"{self.name}")
 
-        call_env = Environment(builtins=self.env.builtins, outer=self.env)
+        call_env = Environment(builtins=call_site_env.builtins, outer=evaluator.global_env)
         for param, value in zip(self.param_list, args):
-            evaled_value = evaluator.evaluate(value, call_site_env, "inner")
-
-            if evaled_value is None:
-                raise UnboundParameterError(value)
-
-            call_env.define(param, evaled_value)
+            call_env.define(param, value)
 
         for expr in self.body[:-1]:
             evaluator.evaluate(expr, call_env, "inner")
