@@ -1,6 +1,6 @@
 from src.primitive import *
 from src.special_forms import *
-from src.function_object import LambdaSymbolReference
+from src.function_object import DummySymbolReference
 
 # `quote`, `define`, `and`, `or` are special forms, others are just normal procedures.
 # distinction between special forms and procedures are how arguments evaluates and how the construct behaves
@@ -70,5 +70,11 @@ built_in_funcs = {
     "exit": prim_exit,
 
 
-    "lambda": LambdaSymbolReference("lambda"),
+    # ========
+    "let": special_let,
+
+    # Dummy symbols
+    "lambda": DummySymbolReference("lambda"),
+    "verbose": DummySymbolReference("verbose"),
+    "verbose?": DummySymbolReference("verbose?"),
 }

@@ -167,13 +167,15 @@ class Parser:
             value = token.value
             line, pos = self._relative_token_position(token)
 
-            raise UnexpectedTokenError(type=1, line=line, column=pos, value=value)
+            raise UnexpectedTokenError(type_=1, line=line, column=pos, value=value)
 
         elif token.type == "RIGHT_PAREN":
             value = token.value
             line, pos = self._relative_token_position(token)
 
-            raise UnexpectedTokenError(type=1, line=line, column=pos, value=value)
+            raise UnexpectedTokenError(type_=1, line=line, column=pos, value=value)
+
+        return None
 
     def _parse_list(self) -> ASTNode:
         """
@@ -201,7 +203,7 @@ class Parser:
                     line, pos = self._relative_token_position(self._current_token)
                     value = self._current_token.value
 
-                    raise UnexpectedTokenError(type=1, line=line, column=pos, value=value)
+                    raise UnexpectedTokenError(type_=1, line=line, column=pos, value=value)
 
                 self._consume_token()  # skip `.`
 
@@ -210,7 +212,7 @@ class Parser:
                     line, pos = self._relative_token_position(self._current_token)
                     value = self._current_token.value
 
-                    raise UnexpectedTokenError(type=1, line=line, column=pos, value=value)
+                    raise UnexpectedTokenError(type_=1, line=line, column=pos, value=value)
 
                 elif Parser._is_token_type(self._current_token, "EOF"):
                     # Inform parser and repl to wait for remaining user input
@@ -229,7 +231,7 @@ class Parser:
                     line, pos = self._relative_token_position(token)
                     value = token.value
 
-                    raise UnexpectedTokenError(type=2, line=line, column=pos, value=value)
+                    raise UnexpectedTokenError(type_=2, line=line, column=pos, value=value)
 
                 return Parser._convert_to_cons(elements, cdr)  # Convert to unified format
 

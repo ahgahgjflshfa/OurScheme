@@ -8,14 +8,11 @@ from src.special_forms import eval_lambda
 
 
 class Evaluator:
-    def __init__(self, builtins: dict[str, object]=None, env: Environment=None, verbose: bool=True):
+    def __init__(self, builtins: dict[str, object]=None, verbose: bool=True):
         self.builtins = builtins if builtins is not None else built_in_funcs
-        self.env = env if env is not None else Environment(self.builtins)
         self.verbose = verbose
 
-    def evaluate(self, ast: ASTNode, env: Environment = None, level: str = "toplevel"):
-        env = env if env is not None else self.env
-
+    def evaluate(self, ast: ASTNode, env: Environment, level: str):
         if isinstance(ast, AtomNode):
             if ast.type == "SYMBOL":
                 return env.lookup(ast.value)
@@ -34,11 +31,17 @@ class Evaluator:
                 if len(args) != 1:
                     raise IncorrectArgumentNumber("verbose")
 
-                value = self.evaluate(args[0])
-                self.verbose = True if value == AtomNode("BOOLEAN", "#t") else False
-                return value
+                value = self.evaluate(args[0], env, "inner")
+                self.verbose = True if value != AtomNode("BOOLEAN", "nil") else False
+                print("#t" if value != AtomNode("BOOLEAN", "nil") else "nil")
+
+                return AtomNode("VOID", "")
 
             if first == AtomNode("SYMBOL", "verbose?"):
+                args = Evaluator.extract_list(ast.cdr)
+                if len(args) != 0:
+                    raise IncorrectArgumentNumber("verbose")
+
                 return AtomNode("BOOLEAN", "#t") if self.verbose else AtomNode("BOOLEAN", "nil")
 
 
@@ -65,7 +68,7 @@ class Evaluator:
 
             func.check_arity(args)
 
-            if isinstance(func, (SpecialForm, UserDefinedFunction)):   # Special forms
+            if isinstance(func, SpecialForm):   # Special forms
                 eval_result = func(args, env, self)
             else:  # Primitive functions
                 evaluated_args = self.eval_list(args, env)
@@ -75,6 +78,8 @@ class Evaluator:
                 raise NoReturnValue(ast)
 
             return eval_result
+
+        raise NotImplementedError(f"Unhandled AST node: {ast}")
 
     @staticmethod
     def extract_list(cons_node: ASTNode) -> list[ASTNode]:

@@ -1,6 +1,6 @@
 from src.ast_nodes import *
 from src.environment import Environment
-from src.errors import DefineFormatError, CondFormatError, LambdaFormatError
+from src.errors import DefineFormatError, CondFormatError, LambdaFormatError, LetFormatError
 from src.function_object import SpecialForm, UserDefinedFunction
 
 
@@ -17,13 +17,13 @@ def special(name, min_args=None, max_args=None):
 
 
 @special(name="quote", min_args=1, max_args=1)
-def special_quote(args: list[ASTNode], env: Environment, evaluator: "Evaluator") -> ASTNode:
+def special_quote(args: list[ASTNode], _env: Environment, _evaluator: "Evaluator") -> ASTNode:
     arg = args[0]
     return arg
 
 
 @special(name="define")
-def special_define(args: list[str, ASTNode], env: Environment, evaluator: "Evaluator") -> ASTNode:
+def special_define(args: list[ASTNode], env: Environment, evaluator: "Evaluator") -> ASTNode:
     # Define has it own rules for the arguments, so I'm not using the decorator for checking argument
     if len(args) < 2:
         raise DefineFormatError()
@@ -63,7 +63,7 @@ def special_define(args: list[str, ASTNode], env: Environment, evaluator: "Evalu
         # Body list
         body = args[1:]
 
-        env.define(func_name, UserDefinedFunction(params, body, env))
+        env.define(func_name, UserDefinedFunction(name=func_name, param_list=params, body=body, env=env))
 
         if evaluator.verbose:
             print(f"{func_name} defined")
@@ -101,15 +101,16 @@ def special_begin(args: list[ASTNode], env: Environment, evaluator: "Evaluator")
 
 
 @special(name="if", min_args=2, max_args=3)
-def special_if(args: list[ASTNode], env: Environment, evaluator: "Evaluator") -> ASTNode:
+def special_if(args: list[ASTNode], env: Environment, evaluator: "Evaluator") -> ASTNode | None:
     test_expr, then_expr, *rest = args
     else_expr = rest[0] if rest else None
 
     if evaluator.evaluate(test_expr, env, "inner") != AtomNode("BOOLEAN", "nil"):
         return evaluator.evaluate(then_expr, env, "inner")
-
-    else:
+    elif else_expr is not None:
         return evaluator.evaluate(else_expr, env, "inner")
+
+    return None
 
 
 @special(name="cond")
@@ -139,7 +140,7 @@ def special_cond(args: list[ASTNode], env: Environment, evaluator: "Evaluator") 
         clauses.append(extract_clause(arg))
 
     for test, exprs in clauses[:-1]:
-        if evaluator.evaluate(test) != AtomNode("BOOLEAN", "nil"):
+        if evaluator.evaluate(test, env, "inner") != AtomNode("BOOLEAN", "nil"):
             for expr in exprs[:-1]:
                 evaluator.evaluate(expr, env, "inner")
 
@@ -147,11 +148,54 @@ def special_cond(args: list[ASTNode], env: Environment, evaluator: "Evaluator") 
 
     test, exprs = clauses[-1]
     if (test == AtomNode("SYMBOL", "else") or
-            evaluator.evaluate(test) != AtomNode("BOOLEAN", "nil")):
+            evaluator.evaluate(test, env, "inner") != AtomNode("BOOLEAN", "nil")):
         for expr in exprs[:-1]:
             evaluator.evaluate(expr, env, "inner")
 
         return evaluator.evaluate(exprs[-1], env, "inner")
+
+    return None
+
+
+@special(name="let")
+def special_let(args: list[ASTNode], env: Environment, evaluator: "Evaluator"):
+    if len(args) < 2:
+        raise LetFormatError()
+
+    let_env = Environment(outer=env)
+    bindings, *body = args
+
+    if isinstance(bindings, AtomNode):
+        if not (bindings.type == "BOOLEAN" and bindings.value == "nil"):
+            raise LetFormatError()
+    else:
+        if not isinstance(bindings, ConsNode):
+            raise LetFormatError()
+
+        curr = bindings
+        while isinstance(curr, ConsNode):
+            pair = curr.car
+
+            if not (isinstance(pair, ConsNode) and
+                    isinstance(pair.car, AtomNode) and pair.car.type == "SYMBOL" and
+                    isinstance(pair.cdr, ConsNode) and
+                    pair.cdr.cdr == AtomNode("BOOLEAN", "nil")):
+                raise LetFormatError()
+
+            symbol = pair.car.value
+            expr = pair.cdr.car
+            value = evaluator.evaluate(expr, env, "inner")
+
+            let_env.define(symbol, value)
+            curr = curr.cdr
+
+        if curr != AtomNode("BOOLEAN", "nil"):
+            raise LetFormatError()
+
+    for expr in body[:-1]:
+        evaluator.evaluate(expr, let_env, "inner")
+
+    return evaluator.evaluate(body[-1], let_env, "inner")
 
 
 def eval_lambda(args: ConsNode, env: Environment) -> UserDefinedFunction:
@@ -191,7 +235,7 @@ def eval_lambda(args: ConsNode, env: Environment) -> UserDefinedFunction:
         raise LambdaFormatError()
 
 
-    return UserDefinedFunction(param_list=param, body=body, env=env)
+    return UserDefinedFunction(name="lambda", param_list=param, body=body, env=env)
 
 
 __all__ = [
@@ -202,5 +246,6 @@ __all__ = [
     "special_begin",
     "special_if",
     "special_cond",
+    "special_let",
     "eval_lambda"
 ]

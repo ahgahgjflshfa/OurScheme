@@ -83,23 +83,34 @@ class SpecialForm(CallableEntity):
 
 
 class UserDefinedFunction(CallableEntity):
-    def __init__(self, param_list: list[str], body: list[ASTNode], env: "Environment"):
+    def __init__(self, name, param_list: list[str], body: list[ASTNode], env: "Environment"):
+        self.name = name
         self.param_list = param_list
         self.body = body
         self.env = env      # closure
+
+    @staticmethod
+    def deepcopy(env: Environment):
+        """避免外界影響裡邊，但好像project就要影響"""
+        closure = Environment(builtins=env.builtins, outer=env.outer)
+
+        for symbol, value in env.user_define.items():
+            closure.define(symbol, value)
+
+        return closure
 
     def check_arity(self, args: list[ASTNode]):
         if len(self.param_list) != len(args):
             raise IncorrectArgumentNumber("lambda")
 
-    def __call__(self, args: list[ASTNode], _, evaluator: "Evaluator"):
+    def __call__(self, args: list[ASTNode], call_site_env: Environment, evaluator: "Evaluator"):
         if len(self.param_list) != len(args):
             raise IncorrectArgumentNumber("lambda")
 
-        call_env = Environment(outer=self.env)
+        call_env = Environment(builtins=self.env.builtins, outer=self.env)
         for param, value in zip(self.param_list, args):
-            evaled_value = evaluator.evaluate(value)
-            call_env.define(param, evaled_value)
+            # evaled_value = evaluator.evaluate(value, call_site_env, "inner")
+            call_env.define(param, value)
 
         for expr in self.body[:-1]:
             evaluator.evaluate(expr, call_env, "inner")
@@ -107,16 +118,16 @@ class UserDefinedFunction(CallableEntity):
         return evaluator.evaluate(self.body[-1], call_env, "inner")
 
     def __repr__(self):
-        return f"#<procedure lambda>"
+        return f"#<procedure {self.name}>"
 
 
-class LambdaSymbolReference(CallableEntity):
+class DummySymbolReference(CallableEntity):
     """Just a dummy"""
     def __init__(self, name):
         self.name = name
 
     def __call__(self, *args, **kwargs):
-        raise NotImplementedError("lambda symbol is not directly callable")
+        raise NotImplementedError(f"Symbol '{self.name}' is not callable")
 
     def __repr__(self):
         return f"#<procedure {self.name}>"
@@ -126,5 +137,5 @@ __all__ = [
     "PrimitiveFunction",
     "SpecialForm",
     "UserDefinedFunction",
-    "LambdaSymbolReference"
+    "DummySymbolReference"
 ]

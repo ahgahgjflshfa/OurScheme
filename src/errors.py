@@ -61,6 +61,11 @@ class LambdaFormatError(OurSchemeError):
         super().__init__(f"lambda format")
 
 
+class LetFormatError(OurSchemeError):
+    def __init__(self):
+        super().__init__(f"LET format")
+
+
 class UnboundSymbolError(OurSchemeError):
     def __init__(self, symbol_: str):
         self.symbol = symbol_
@@ -127,6 +132,7 @@ __all__ = [
     "DefineFormatError",
     "CondFormatError",
     "LambdaFormatError",
+    "LetFormatError",
     "UnboundSymbolError",
     "IncorrectArgumentType",
     "NotCallableError",

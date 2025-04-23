@@ -5,10 +5,13 @@ from src.evaluator import Evaluator
 from src.lexer import Lexer
 from src.parser import Parser
 from src.pretty_print import pretty_print
+from src.builtins_registry import built_in_funcs
+from src.environment import Environment
 
 
 def repl():
     lexer = Lexer()
+    global_env = Environment(built_in_funcs)
     evaluator = Evaluator()
     print("Welcome to OurScheme!")
 
@@ -46,19 +49,13 @@ def repl():
 
                     # Eval
                     try:
-                        eval_result = evaluator.evaluate(result)
-
-                        # 特判 define，輸出 "x defined"
-                        if eval_result is None:
-                            print(f"ERROR (no return value) : {pretty_print(result)}")
-
-                        elif isinstance(eval_result, AtomNode) and eval_result.type == "VOID":    # for verbose
+                        eval_result = evaluator.evaluate(result, global_env, "toplevel")
+                        if isinstance(eval_result, AtomNode) and eval_result.type == "VOID":    # for verbose
                             continue
-
                         else:
                             print(f"{pretty_print(eval_result).lstrip('\n')}")
 
-                    except (DefineFormatError, CondFormatError, LambdaFormatError) as e:
+                    except (DefineFormatError, CondFormatError, LambdaFormatError, LetFormatError) as e:
                         print(f"{e} : {pretty_print(result)}")
 
                     except UnboundSymbolError as e:

@@ -44,14 +44,6 @@ class QuoteNode(ASTNode):
         return f"{self.__class__.__name__}({repr(self.value)})"
 
 
-# Prepare but don't use yet
-class LambdaNode(ASTNode):
-    def __init__(self, params: list[str], body: ASTNode, env=None):
-        self.params = params
-        self.body = body
-        self.env = env
-
-
 __all__ = [
     "ASTNode",
     "AtomNode",
