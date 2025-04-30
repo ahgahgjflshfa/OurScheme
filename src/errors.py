@@ -58,7 +58,7 @@ class CondFormatError(OurSchemeError):
 
 class LambdaFormatError(OurSchemeError):
     def __init__(self):
-        super().__init__(f"lambda format")
+        super().__init__(f"LAMBDA format")
 
 
 class LetFormatError(OurSchemeError):

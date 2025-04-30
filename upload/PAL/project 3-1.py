@@ -61,7 +61,7 @@ class CondFormatError(OurSchemeError):
 
 class LambdaFormatError(OurSchemeError):
     def __init__(self):
-        super().__init__(f"lambda format")
+        super().__init__(f"LAMBDA format")
 
 
 class LetFormatError(OurSchemeError):
@@ -1371,7 +1371,11 @@ def special_define(args: list[ASTNode], env: Environment, evaluator: "Evaluator"
         symbol_name = symbol.value
         value = args[1]
 
-        env.define(symbol_name, evaluator.evaluate(value, env, "inner"))
+        evaled_value = evaluator.evaluate(value, env, "inner")
+        if evaled_value is None:
+            raise NoReturnValue(value)
+
+        env.define(symbol_name, evaled_value)
 
         if evaluator.verbose:
             print(f"{symbol_name} defined")
@@ -1542,6 +1546,10 @@ def special_let(args: list[ASTNode], env: Environment, evaluator: "Evaluator"):
 
     for symbol, expr in binding_list:
         value = evaluator.evaluate(expr, env, "inner")
+
+        if value is None:
+            raise NoReturnValue(expr)
+
         let_env.define(symbol, value)
 
     for expr in body[:-1]:

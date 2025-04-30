@@ -1,6 +1,7 @@
 from src.ast_nodes import *
 from src.environment import Environment
-from src.errors import DefineFormatError, CondFormatError, LambdaFormatError, LetFormatError, UnboundConditionError
+from src.errors import DefineFormatError, CondFormatError, LambdaFormatError, LetFormatError, UnboundConditionError, \
+    NoReturnValue
 from src.function_object import SpecialForm, UserDefinedFunction
 
 
@@ -37,12 +38,16 @@ def special_define(args: list[ASTNode], env: Environment, evaluator: "Evaluator"
         symbol_name = symbol.value
         value = args[1]
 
-        env.define(symbol_name, evaluator.evaluate(value, env, "inner"))
+        evaled_value = evaluator.evaluate(value, env, "inner")
+        if evaled_value is None:
+            raise NoReturnValue(value)
+
+        env.define(symbol_name, evaled_value)
 
         if evaluator.verbose:
             print(f"{symbol_name} defined")
 
-    else:   # syntactic sugar for lambda, e.g. (define (f x y) (+ x y)) === (define f (lambda (x y) (+ x y)))
+    else:  # syntactic sugar for lambda, e.g. (define (f x y) (+ x y)) === (define f (lambda (x y) (+ x y)))
         # Function name and parameters
         func_sig = args[0]
         curr = func_sig
@@ -208,6 +213,9 @@ def special_let(args: list[ASTNode], env: Environment, evaluator: "Evaluator"):
 
     for symbol, expr in binding_list:
         value = evaluator.evaluate(expr, env, "inner")
+        if value is None:
+            raise NoReturnValue(expr)
+
         let_env.define(symbol, value)
 
     for expr in body[:-1]:
@@ -240,7 +248,6 @@ def eval_lambda(args: ConsNode, env: Environment) -> UserDefinedFunction:
     if curr_param != AtomNode("BOOLEAN", "nil"):
         raise LambdaFormatError()
 
-
     # Body shouldn't be empty
     body = []
     curr_body = args.cdr
@@ -251,7 +258,6 @@ def eval_lambda(args: ConsNode, env: Environment) -> UserDefinedFunction:
 
     if len(body) == 0 or curr_body != AtomNode("BOOLEAN", "nil"):
         raise LambdaFormatError()
-
 
     return UserDefinedFunction(name="lambda", param_list=param, body=body)
 
