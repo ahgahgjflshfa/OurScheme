@@ -1,3 +1,5 @@
+# cat input.txt | python main.py > output.txt
+
 import numpy as np
 
 
@@ -90,8 +92,7 @@ class NotCallableError(OurSchemeError):
 
 
 class NonListError(OurSchemeError):
-    def __init__(self, ast_):
-        self.ast = ast_
+    def __init__(self):
         super().__init__(f"non-list")
 
 
@@ -1363,6 +1364,9 @@ def special_define(args: list[ASTNode], env: Environment, evaluator: "Evaluator"
         raise DefineFormatError()
 
     if isinstance(args[0], AtomNode):
+        if len(args) != 2:
+            raise DefineFormatError()
+
         symbol = args[0]
 
         if symbol.type != "SYMBOL":
@@ -1759,7 +1763,7 @@ class Evaluator:
             curr_ast = curr_ast.cdr
 
         if not (isinstance(curr_ast, AtomNode) and curr_ast.value == "nil"):
-            raise NonListError(cons_node)
+            raise NonListError()
 
         return args
 
@@ -1908,7 +1912,7 @@ def repl():
                         print(f"{e} : {pretty_print(e.operator)}")
 
                     except NonListError as e:
-                        print(f"{e} : {pretty_print(e.ast)}")
+                        print(f"{e} : {pretty_print(result)}")
 
                     except NoReturnValue as e:
                         print(f"{e} : {pretty_print(e.ast)}")

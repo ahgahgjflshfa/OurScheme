@@ -30,6 +30,9 @@ def special_define(args: list[ASTNode], env: Environment, evaluator: "Evaluator"
         raise DefineFormatError()
 
     if isinstance(args[0], AtomNode):
+        if len(args) != 2:
+            raise DefineFormatError()
+
         symbol = args[0]
 
         if symbol.type != "SYMBOL":

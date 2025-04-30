@@ -91,7 +91,7 @@ class Evaluator:
             curr_ast = curr_ast.cdr
 
         if not (isinstance(curr_ast, AtomNode) and curr_ast.value == "nil"):
-            raise NonListError(cons_node)
+            raise NonListError()
 
         return args
 

@@ -87,8 +87,7 @@ class NotCallableError(OurSchemeError):
 
 
 class NonListError(OurSchemeError):
-    def __init__(self, ast_):
-        self.ast = ast_
+    def __init__(self):
         super().__init__(f"non-list")
 
 
