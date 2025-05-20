@@ -1,4 +1,5 @@
 from src.primitive import *
+from src.primitive import prim_read
 from src.special_forms import *
 from src.function_object import DummySymbolReference
 
@@ -77,4 +78,16 @@ built_in_funcs = {
     "lambda": DummySymbolReference("lambda"),
     "verbose": DummySymbolReference("verbose"),
     "verbose?": DummySymbolReference("verbose?"),
+
+    # ========
+    "create-error-object": prim_create_error_obj,
+    "error-object?": prim_is_error_obj,
+    "display-string": prim_display_string,
+    "newline": prim_newline,
+    "symbol->string": prim_sym_to_str,
+    "number->string": prim_num_to_str,
+    "write": prim_write,
+    "read": prim_read,
+    "eval": prim_eval,
+    "set!": special_set,
 }

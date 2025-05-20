@@ -67,6 +67,12 @@ class LetFormatError(OurSchemeError):
         super().__init__(f"LET format")
 
 
+class SetFormatError(OurSchemeError):
+    def __init__(self, ast):
+        self.ast = ast
+        super().__init__(f"SET! format")
+
+
 class UnboundSymbolError(OurSchemeError):
     def __init__(self, symbol_: str):
         self.symbol = symbol_
@@ -87,7 +93,8 @@ class NotCallableError(OurSchemeError):
 
 
 class NonListError(OurSchemeError):
-    def __init__(self):
+    def __init__(self, ast):
+        self.ast = ast
         super().__init__(f"non-list")
 
 
@@ -140,11 +147,13 @@ __all__ = [
     "NoClosingQuoteError",
     "NotFinishError",
     "EmptyInputError",
+    "SchemeExitException",
     "UnexpectedTokenError",
     "DefineFormatError",
     "CondFormatError",
     "LambdaFormatError",
     "LetFormatError",
+    "SetFormatError",
     "UnboundSymbolError",
     "IncorrectArgumentType",
     "NotCallableError",

@@ -1,8 +1,9 @@
 from src.ast_nodes import *
 from src.environment import Environment
-from src.errors import DivisionByZeroError, SchemeExitException
-# from src.evaluator import Evaluator
+from src.errors import DivisionByZeroError, SchemeExitException, IncorrectArgumentType, NoClosingQuoteError, \
+    EmptyInputError, UnexpectedTokenError, NotFinishError
 from src.function_object import PrimitiveFunction
+from src.pretty_print import pretty_print
 
 
 def primitive(name=None, min_args=None, max_args=None, arg_types=None):
@@ -323,12 +324,124 @@ def prim_is_equal(args: list[ASTNode], _env, _evaluator) -> ASTNode:
 
 
 @primitive(name="clean-environment", min_args=0, max_args=0)
-def prim_clean_env(_args, env: Environment, evaluator: "Evaluator") -> ASTNode:
+def prim_clean_env(_args, env: "Environment", evaluator: "Evaluator") -> ASTNode:
     env.clear()
     if evaluator.verbose:
         print("environment cleaned")
 
     return AtomNode("VOID", "")
+
+
+@primitive(name="create-error-object", min_args=1, max_args=1)
+def prim_create_error_obj(args: list[ASTNode], _env: Environment, _evaluator: "Evaluator"):
+    arg = args[0]
+    if not (isinstance(arg, AtomNode) and arg.type == "STRING"):
+        raise IncorrectArgumentType("create-error-object", arg)
+
+    return AtomNode("ERROR", arg.value)
+
+
+@primitive(name="error-object?", min_args=1, max_args=1)
+def prim_is_error_obj(args: list[ASTNode], _env: Environment, _evaluator: "Evaluator"):
+    is_error = isinstance(args[0], AtomNode) and args[0].type == "ERROR"
+    return AtomNode("BOOLEAN", "#t" if is_error else "nil")
+
+
+@primitive(name="display-string", min_args=1, max_args=1)
+def prim_display_string(args: list[ASTNode], _env: Environment, _evaluator: "Evaluator"):
+    node = args[0]
+    if not (isinstance(node, AtomNode) and node.type in ("STRING", "ERROR")):
+        raise IncorrectArgumentType("display-string", node)
+
+    print(node.value, end="")
+    return node
+
+
+@primitive(name="newline", min_args=0, max_args=0)
+def prim_newline(_args: list[ASTNode], _env: Environment, _evaluator: "Evaluator"):
+    print()
+    return AtomNode("BOOLEAN", "nil")
+
+
+@primitive(name="symbol->string", min_args=1, max_args=1)
+def prim_sym_to_str(args: list[ASTNode], _env: Environment, _evaluator: "Evaluator"):
+    arg = args[0]
+    if isinstance(arg, AtomNode) and arg.type == "SYMBOL":
+        return AtomNode("STRING", arg.value)
+    else:
+        raise IncorrectArgumentType("symbol->string", arg)
+
+
+@primitive(name="number->string", min_args=1, max_args=1)
+def prim_num_to_str(args: list[ASTNode], _env: Environment, _evaluator: "Evaluator"):
+    arg = args[0]
+    if isinstance(arg, AtomNode) and arg.type in ("FLOAT", "INT"):
+        if arg.type == "FLOAT":
+            return AtomNode("STRING", f"{arg.value:.3f}")
+        else:
+            return AtomNode("STRING", f"{arg.value}")
+    else:
+        raise IncorrectArgumentType("number->string", arg)
+
+
+@primitive(name="write", min_args=1, max_args=1)
+def prim_write(args: list[ASTNode], _env: Environment, _evaluator: "Evaluator"):
+    obj = args[0]
+    print(pretty_print(obj), end="")
+    return obj
+
+
+@primitive(name="read", min_args=0, max_args=0)
+def prim_read(_args, _env, evaluator: "Evaluator"):
+    # do one parsing and return parsing result
+    parser = evaluator.parser
+    lexer = parser.lexer
+
+    partial_input = lexer.source_code[parser.last_s_exp_pos + 1:]  # only get those not used
+
+    while True:
+        try:
+            if parser.current.type == "EOF":
+                # No token left in lexer, so need to get new input for (read)
+                new_input = input()
+                partial_input += '\n' + new_input
+
+                lexer.reset(partial_input)
+                lexer.set_position(0)
+                parser.reset(lexer)
+
+            result = parser.parse()
+            return result
+
+        except UnexpectedTokenError as e:
+            try:
+                lexer.reset("")
+                parser.reset(lexer)
+            except EmptyInputError:
+                pass
+
+            if e.type == 1:
+                return AtomNode("ERROR", f"{e} : atom or '(' expected when token at Line {e.line} Column {e.column} is >>{e.value}<<")
+            else:
+                return AtomNode("ERROR", f"{e} : ')' expected when token at Line {e.line} Column {e.column} is >>{e.value}<<")
+
+        except NoClosingQuoteError as e:
+            try:
+                lexer.reset("")
+                parser.reset(lexer)
+            except EmptyInputError:
+                # this error are used for telling repl not to clear partial input, so need to catch this error
+                pass
+
+            return AtomNode("ERROR", f"{e} : END-OF-LINE encountered at Line {e.line} Column {e.column}")
+
+        except (NotFinishError, EmptyInputError):
+            continue
+
+
+@primitive(name="eval", min_args=1, max_args=1)
+def prim_eval(args: list[ASTNode], env: Environment, evaluator: "Evaluator"):
+    return evaluator.evaluate(args[0], evaluator.global_env, level="toplevel")
 
 
 @primitive(name="exit", min_args=0, max_args=0)
@@ -368,5 +481,14 @@ __all__ = [
     "prim_is_eqv",
     "prim_is_equal",
     "prim_clean_env",
-    "prim_exit"
+    "prim_create_error_obj",
+    "prim_is_error_obj",
+    "prim_display_string",
+    "prim_newline",
+    "prim_sym_to_str",
+    "prim_num_to_str",
+    "prim_write",
+    "prim_read",
+    "prim_eval",
+    "prim_exit",
 ]

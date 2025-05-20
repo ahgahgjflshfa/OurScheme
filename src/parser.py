@@ -4,17 +4,12 @@ from src.lexer import Lexer, Token
 
 
 class Parser:
-    def __init__(self, lexer: Lexer):
+    def __init__(self):
         """
-        Initialize the Parser with a given lexer. This also performs an initial token fetch.
-
-        Args:
-            lexer (Lexer): The lexer instance used to tokenize the input source code.
-
-        Raises:
-            EmptyInputError: If the input is immediately EOF.
+        Lazy Initialization.
         """
-        self.lexer = lexer
+        self.lexer = None
+        self._current_token = None
 
         # Records the starting column index of the current S-expression
         # (based on the list index of the source characters)
@@ -25,11 +20,6 @@ class Parser:
         # So: source_code[last_token_end_pos] is still part of the previous token,
         # and the next character after that is the beginning of the new token.
         self._last_token_end_pos = 0
-
-        self._current_token = self.lexer.next_token()
-
-        if self._current_token.type == "EOF":
-            raise EmptyInputError(f"EOF encountered")
 
     @staticmethod
     def _is_token_type(token: Token, *types: str) -> bool:
@@ -301,6 +291,18 @@ class Parser:
             int: Character index of the last token in source string.
         """
         return self._last_token_end_pos
+
+    def reset(self, lexer):
+        self.lexer = lexer
+
+        self._current_s_exp_start_pos = 0
+
+        self._last_token_end_pos = 0
+
+        self._current_token = self.lexer.next_token()
+
+        if self._current_token.type == "EOF":
+            raise EmptyInputError(f"EOF encountered")
 
     def parse(self) -> ASTNode:
         """

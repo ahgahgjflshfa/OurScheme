@@ -17,7 +17,7 @@ def pretty_print(node, indent: int = 0):
 
     if isinstance(node, AtomNode):
         # Handle basic types: number, boolean, symbol, string
-        if node.type == "STRING":
+        if node.type in ("STRING", "ERROR"):
             return f'"{node.value}"'
         elif node.type == "FLOAT":
             return f"{node.value:.3f}"

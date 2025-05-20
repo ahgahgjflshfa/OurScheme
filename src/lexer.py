@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 
 
@@ -56,7 +57,7 @@ class Lexer:
         Args:
             new_source_code (str): The new code to be tokenized.
         """
-        self.source_code = new_source_code  # + "\n"
+        self.source_code = new_source_code
         self._position = 0
         self._line_number = 1
         self._column_number = 1

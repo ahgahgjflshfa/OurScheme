@@ -14,9 +14,13 @@ class Environment:
         self.user_define[symbol] = value
 
     def lookup(self, symbol: str):
-        """
-        :param symbol: symbol name
-        :return: A callable function (e.g. primitive like PrimAdd)
+        """Lookup the value of a symbol
+
+        Args:
+            symbol: the symbol name
+
+        Returns: the corresponding value of `symbol`
+
         """
         if symbol in self.user_define:
             return self.user_define[symbol]
@@ -29,6 +33,21 @@ class Environment:
 
         else:
             raise UnboundSymbolError(symbol)
+
+    def find(self, symbol: str):
+        """Find which environment does the symbol defined.
+
+        Args:
+            symbol: the symbol name
+
+        Returns: The environment where the symbol defined.
+        """
+        if symbol in self.user_define:
+            return self
+        elif self.outer:
+            return self.outer.find(symbol)
+
+        return None
 
     def clear(self):
         self.user_define.clear()

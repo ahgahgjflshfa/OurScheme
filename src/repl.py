@@ -11,29 +11,27 @@ from src.environment import Environment
 
 def repl():
     lexer = Lexer()
+    parser = Parser()
     global_env = Environment(built_in_funcs)
-    evaluator = Evaluator(global_env)
+    evaluator = Evaluator(global_env, parser)
+
     print("Welcome to OurScheme!")
 
     empty_line_encountered = False
-
     partial_input = ""  # for multiline input
     new_s_exp_start = 0
+
     while True:
         try:
             if not empty_line_encountered:
                 print("\n>", end=" ")
 
             new_input = input()  # read new input
-
-
             partial_input += new_input + "\n"  # add new line input
 
             lexer.reset(partial_input.rstrip("\n"))
-
             lexer.set_position(new_s_exp_start)
-
-            parser = Parser(lexer)
+            parser.reset(lexer)
 
             # Parsing
             first = True
@@ -63,7 +61,7 @@ def repl():
                     except (DefineFormatError, CondFormatError, LambdaFormatError) as e:
                         print(f"{e} : {pretty_print(result)}")
 
-                    except LetFormatError as e:
+                    except (LetFormatError, SetFormatError) as e:
                         print(f"{e} : {pretty_print(e.ast)}")
 
                     except UnboundSymbolError as e:

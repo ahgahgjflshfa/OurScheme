@@ -1,7 +1,7 @@
 from src.ast_nodes import *
 from src.environment import Environment
 from src.errors import DefineFormatError, CondFormatError, LambdaFormatError, LetFormatError, UnboundConditionError, \
-    NoReturnValue
+    NoReturnValue, IncorrectArgumentType, UnboundSymbolError, SetFormatError
 from src.function_object import SpecialForm, UserDefinedFunction
 
 
@@ -48,7 +48,7 @@ def special_define(args: list[ASTNode], env: Environment, evaluator: "Evaluator"
         env.define(symbol_name, evaled_value)
 
         if evaluator.verbose:
-            print(f"{symbol_name} defined")
+           print(f"{symbol_name} defined")
 
     else:  # syntactic sugar for lambda, e.g. (define (f x y) (+ x y)) === (define f (lambda (x y) (+ x y)))
         # Function name and parameters
@@ -227,12 +227,36 @@ def special_let(args: list[ASTNode], env: Environment, evaluator: "Evaluator"):
     return evaluator.evaluate(body[-1], let_env, "inner")
 
 
-def eval_lambda(args: ConsNode, env: Environment) -> UserDefinedFunction:
+@special(name="set!", min_args=2, max_args=2)
+def special_set(args: list[ASTNode], env: Environment, evaluator: "Evaluator"):
+    def args_to_cons(args: list[ASTNode]) -> ASTNode:
+        result = AtomNode("BOOLEAN", "nil")
+        for node in reversed(args):  # 從最後一個開始包
+            result = ConsNode(node, result)
+        return result
+
+    target = args[0]
+    value_expr = args[1]
+
+    if not isinstance(target, AtomNode) or target.type != "SYMBOL":
+        full_ast = ConsNode(AtomNode("SYMBOL", "set!"), args_to_cons(args))
+        raise SetFormatError(full_ast)
+
+    value = evaluator.evaluate(value_expr, env, "inner")
+
+    ref_env = env.find(target.value)
+    if ref_env is None:
+        ref_env = evaluator.global_env
+
+    ref_env.user_define[target.value] = value
+    return value
+
+
+def eval_lambda(args: ConsNode, _env: Environment) -> UserDefinedFunction:
     """
 
     Args:
         args: A pair which car is the param list for lambda and cdr is the body (at least one body).
-        env: The closure environment.
 
     Returns:
         A UserDefinedFunction class representing a lambda expression.
@@ -256,7 +280,7 @@ def eval_lambda(args: ConsNode, env: Environment) -> UserDefinedFunction:
     curr_body = args.cdr
 
     while isinstance(curr_body, ConsNode):
-        body.append(curr_body.car)  # 你原本放的是 curr_param（誤）
+        body.append(curr_body.car)
         curr_body = curr_body.cdr
 
     if len(body) == 0 or curr_body != AtomNode("BOOLEAN", "nil"):
@@ -274,5 +298,6 @@ __all__ = [
     "special_if",
     "special_cond",
     "special_let",
+    "special_set",
     "eval_lambda"
 ]
